@@ -6,6 +6,8 @@ import json
 from functools import lru_cache
 from pathlib import Path
 
+from .i18n import field
+
 METHODS_FILE = Path(__file__).resolve().parent / "methods.json"
 
 
@@ -51,8 +53,12 @@ def reference_markdown(key: str) -> str:
     return ref["citation"]
 
 
+def lab_protocol() -> dict:
+    return load().get("lab_protocol", {})
+
+
 def result_unit(method: dict, standard: dict | None) -> str:
-    label = method.get("result_unit_label") or ""
+    label = field(method, "result_unit_label") or ""
     if standard and "{abbr}" in label:
-        return label.replace("{abbr}", standard["abbr"])
+        return label.replace("{abbr}", field(standard, "abbr"))
     return label

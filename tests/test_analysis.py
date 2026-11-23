@@ -105,3 +105,38 @@ def test_demo_files_load():
         assert len(pd.read_csv(DATA / f)) > 0
     rep, summ = ph_differential.compute(pd.read_csv(DATA / "demo_ph_differential.csv"))
     assert len(summ) == 2 and (rep["A"] > 0).all()
+
+
+def test_content_with_extract_concentration():
+    # Lab protocol: extract dissolved at 50 µg/mL; C = 4 µg GAE/mL → 4/50 = 0.08 g/g = 80 mg/g
+    res = compute_python(perfect_curve())
+    A = an.intercept(res) + an.slope(res) * 4.0
+    s = pd.DataFrame({"sample": ["H"] * 3, "absorbance": [A] * 3, "extract_conc_ug_mL": [50] * 3,
+                      "dilution_factor": [1] * 3})
+    out = an.sample_content(compute_python(perfect_curve(), s), s, "µg/mL", scale="mg")
+    assert out.loc[0, "content_mean"] == pytest.approx(80.0)
+    out_ug = an.sample_content(compute_python(perfect_curve(), s), s, "µg/mL", scale="µg")
+    assert out_ug.loc[0, "content_mean"] == pytest.approx(80000.0)
+    assert an.content_unit("µg/mL", "GAE", "g extract", "µg") == "µg GAE/g extract"
+
+
+def test_tannins_by_difference():
+    res = compute_python(perfect_curve(b=0.06, a=0.01))
+    a, b = an.intercept(res), an.slope(res)
+    # TP = 9 µg/mL; RP read in the casein supernatant = 0.6 µg/mL → ×3 = 1.8 µg/mL; tannins = 7.2
+    d = pd.DataFrame({"sample": ["X"] * 3, "A_TP": [a + b * 9] * 3, "A_RP": [a + b * 0.6] * 3,
+                      "extract_conc_ug_mL": [100] * 3, "dilution_factor": [1] * 3})
+    rep, summ = an.tannins_by_difference(res, d, "µg/mL", casein_df=3.0)
+    assert summ.loc[0, "C_TP_mean"] == pytest.approx(9.0)
+    assert summ.loc[0, "C_RP_mean"] == pytest.approx(1.8)
+    assert summ.loc[0, "C_tannins_mean"] == pytest.approx(7.2)
+    assert summ.loc[0, "tannins_content_mean"] == pytest.approx(72.0)   # 7.2/100 · 1000 mg/g
+    assert summ.loc[0, "tannin_fraction_pct"] == pytest.approx(80.0)
+
+
+def test_lab_demo_files():
+    for f in ("demo_lab_tpc_gallic_acid.csv", "demo_lab_tpc_samples.csv", "demo_lab_tfc_quercetin.csv",
+              "demo_lab_tfc_samples.csv", "demo_lab_tannins_tannic_acid.csv", "demo_lab_tannins_samples.csv"):
+        assert len(pd.read_csv(DATA / f)) > 0
+    lvls = sorted(pd.read_csv(DATA / "demo_lab_tpc_gallic_acid.csv").iloc[:, 0].unique())
+    assert lvls == methods.get("LAB_TPC_FOLIN_NAOH")["calibration_levels_ug_mL"]

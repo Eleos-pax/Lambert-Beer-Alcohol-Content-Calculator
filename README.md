@@ -33,9 +33,11 @@ methods, proteins, etc.), with full statistics computed in **R** and plots made 
 | **Plots** | Curve with confidence and prediction bands, LOD/LOQ and samples; diagnostics panel (residuals, Q-Q, Cook) |
 | **Libraries** | Plotly (interactive), Matplotlib + Seaborn, plain Matplotlib, Altair — 300 dpi PNG for publications |
 | **Export** | HTML report with interpretation, JSON results and residuals CSV |
+| **Interface language** | English or **Spanish** (selector at the top of the sidebar; the choice is remembered) |
+| **Laboratory protocols** | Total phenolics (Folin-Ciocalteu/NaOH, 760 nm), flavonoids (NaNO₂–AlCl₃–NaOH, 500 nm) and tannins by casein precipitation (TP − RP), with their calibration levels and procedure ([docs/METHODS.md](docs/METHODS.md)) |
 | **Method presets** | Folin-Ciocalteu (total phenolics), AlCl₃ (flavonoids), vanillin-HCl (condensed tannins), bromocresol green (alkaloids), vanillin-H₂SO₄ (saponins), pH differential (anthocyanins, AOAC 2005.02) — each with its variants, standards, warnings and references ([docs/METHODS.md](docs/METHODS.md)) |
 | **Blank correction** | Reagent blank and per-sample blank (coloured extracts) |
-| **Content** | Content = C · V · DF / m per replicate, mean ± SD and RSD% (e.g. mg GAE/g DW) |
+| **Content** | Content = C · DF / C_extract (extract dissolved at a known concentration, e.g. 50 µg/mL) or C · V · DF / m, per replicate, mean ± SD and RSD%, in mg/g or µg/g (e.g. mg GAE/g extract) |
 | **LOD/LOQ basis** | σ = s(y/x), SD of the intercept, or SD of ≥ 10 blanks (ICH Q2) |
 | **Curve acceptance** | Rejected if R² < threshold (default 0.99) or significant lack of fit; design check (≥ 5 levels × 3 replicates) |
 | **Standard addition** | x-intercept with uncertainty and confidence interval; slope parallelism vs external curve (< 3%) |
@@ -74,11 +76,11 @@ sudo apt update && sudo apt install -y python3 python3-venv python3-pip r-base g
 ```
 
 ```bash
-git clone https://github.com/Eleos-pax/Lambert-Beer-Alcohol-Content-Calculator.git
+git clone https://github.com/Eleos-pax/Lambert-Beer-Content-Calculator.git
 ```
 
 ```bash
-cd Lambert-Beer-Alcohol-Content-Calculator && ./scripts/install_linux.sh
+cd Lambert-Beer-Content-Calculator && ./scripts/install_linux.sh
 ```
 
 ```bash
@@ -107,6 +109,18 @@ CalibraUV finds R automatically in `C:\Program Files\R\R-*`. If you installed it
 somewhere else, set the `CALIBRAUV_RSCRIPT` environment variable to the full path
 of `Rscript.exe`.
 
+### Updating and uninstalling
+
+| | Windows (double-click) | Linux |
+|---|---|---|
+| **Update** to the latest version of this repository | `scripts\update_windows.bat` | `./scripts/update_linux.sh` |
+| **Uninstall** (removes the virtual environment, caches and settings; optionally the whole folder) | `scripts\uninstall_windows.bat` | `./scripts/uninstall_linux.sh` |
+
+The update works both for `git clone` installations (`git pull`) and for ZIP
+downloads (it downloads the latest ZIP and copies it over, keeping the virtual
+environment and your settings). The uninstaller asks before deleting anything and
+never removes R or Python.
+
 ### Manual installation (any system)
 
 ```bash
@@ -123,15 +137,17 @@ python -m venv .venv
 
 ## Usage
 
-0. **Method:** choose a preset (or *Generic*) in the sidebar, with its variant and standard.
-1. **Data:** type or paste your standards (concentration, absorbance), or upload a
+0. **Language:** choose English or Español at the top of the sidebar.
+1. **Method:** choose a preset (or *Generic*) in the sidebar, with its variant and standard.
+2. **Data:** type or paste your standards (concentration, absorbance), or upload a
    CSV/Excel file. Enter replicates as repeated rows with the same concentration.
-2. **Samples (optional):** columns `sample` and `absorbance` (one row per replicate), and
-   optionally `sample_blank`, `extract_volume_mL`, `dilution_factor` and `mass_g` to
-   obtain the content per gram.
-3. In the sidebar, set the unit, path length, molar mass, confidence level and
+3. **Samples (optional):** columns `sample` and `absorbance` (one row per replicate), and
+   optionally `sample_blank`, `extract_conc_ug_mL` (or `extract_volume_mL` + `mass_g`)
+   and `dilution_factor` to obtain the content per gram. For tannins by difference,
+   the columns are `A_TP` and `A_RP`.
+4. In the sidebar, set the unit, path length, molar mass, confidence level and
    plotting library.
-4. Check **Statistics** → **Plots** → **Samples** and download the **Report**.
+5. Check **Statistics** → **Plots** → **Samples** and download the **Report**.
 
 The app is **not tied to any specific method**: enter the analyte, wavelength, units
 and molar mass of your own assay. Synthetic demo data is included in [`data/`](data/)
@@ -155,7 +171,7 @@ pip install -r requirements-dev.txt && python -m pytest -v
 ## Project structure
 
 ```
-Lambert-Beer-Alcohol-Content-Calculator/
+Lambert-Beer-Content-Calculator/
 ├── app.py                        Streamlit interface
 ├── r/calibration.R               Statistical engine in R (reference)
 ├── calibrauv/
@@ -164,14 +180,15 @@ Lambert-Beer-Alcohol-Content-Calculator/
 │   ├── engine_python.py          NumPy/SciPy verification engine
 │   ├── interpretation.py         Plain-language interpretation of assumptions
 │   ├── methods.json / methods.py Method presets with references
-│   ├── analysis.py               Blank, content, LOD basis, standard addition, validation
+│   ├── analysis.py               Blank, content, tannins by difference, LOD basis, standard addition, validation
+│   ├── i18n.py / lang_es.py      Interface language (English / Spanish)
 │   ├── ph_differential.py        Anthocyanins by pH differential (no curve)
 │   ├── plots.py                  Matplotlib, Seaborn, Plotly, Altair
 │   └── report.py                 Tables and HTML report
 ├── data/                         Example data
 ├── docs/THEORY.md                Formulas and references
 ├── docs/METHODS.md               Method presets and their sources
-├── scripts/                      Installers for Windows and Linux
+├── scripts/                      Install, run, update and uninstall (Windows and Linux)
 ├── tests/                        Tests (R vs Python)
 └── RESPONSIBLE_AI_POLICY.md
 ```

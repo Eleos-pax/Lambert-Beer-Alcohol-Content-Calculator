@@ -28,6 +28,55 @@ statistics are the same for every method (R `stats::lm`).
 
 Molar masses of the reference standards are general reference values (⚠️).
 
+## Laboratory protocols
+
+Three presets reproduce the laboratory protocol of the Natural Products Laboratory
+(Universidad de Sucre), used for honey extracts of *Apis mellifera* (V2.2) and the
+hydroalcoholic extract of fresh *Citrus paradisi* flavedo and its fractions (V3.1),
+measured on a Spectroquant Pharo 300 UV-Vis spectrophotometer. They appear first in the
+method list.
+
+| Preset | Standard | λ (nm) | Calibration levels (µg/mL) | Result |
+|---|---|---|---|---|
+| Total phenolics – Folin-Ciocalteu / NaOH 0.35 M, reagent 1:50, 3 min dark (Tovar 2013; Recuero Pacheco 2018) | gallic acid | 760 | 0, 2, 4, 6, 8, 10 | mg GAE/g extract |
+| Flavonoids – NaNO₂ 5% (5 min), AlCl₃ 2.5% (6 min), NaOH 1 M, read after 5 min (Tovar 2013; Recuero Pacheco 2018) | quercetin (or catechin) | 500 | 5, 10, 20, 40 | mg QE/g extract |
+| Tannins – Folin-Ciocalteu (Na₂CO₃ 7.5%, reagent 10%) with casein precipitation, by difference (Gomes et al. 2021) | tannic acid | 760 | 0.5, 2, 4, 6, 8, 10, 12, 14 | mg TAE/g extract |
+
+**Content per gram of extract.** Samples are read as a solution of the extract at a
+known concentration (e.g. 50 µg/mL for phenolics), entered in `extract_conc_ug_mL`:
+
+    Content (mg/g) = C (µg/mL) · DF / C_extract (µg/mL) · 1000
+
+All three assays are reported on the **same scale** (mg/g by default, µg/g optional),
+which resolves the mixed units of the original protocol (µg/g for phenolics and
+flavonoids, mg/g for tannins).
+
+**Tannins by difference.** For each replicate enter `A_TP` (total polyphenols) and
+`A_RP` (residual polyphenols in the casein supernatant). Because 6 mL of sample are
+mixed with 12 mL of water, RP is diluted ×3 with respect to TP; this casein dilution
+factor (editable in the sidebar) is applied before subtracting:
+
+    Tannins = TP − RP · DF_casein
+
+**Notes carried over from the protocol** (shown as warnings in the app):
+
+- Phenolics and tannins use two Folin-Ciocalteu variants (NaOH 0.35 M + reagent 1:50
+  vs Na₂CO₃ 7.5% + reagent 10%); deciding whether to harmonize them is pending.
+- NaNO₂–AlCl₃–NaOH responds mainly to flavonoids with a catechol group; with quercetin
+  it may underestimate. Options: catechin as standard, or direct AlCl₃ at ~415 nm with
+  quercetin. In honey, a sample blank is recommended (Sultana et al., 2024).
+- The flavonoid curve has 4 levels; ICH Q2 recommends at least 5.
+- Replicates are technical (triplicate of the same sample) and do not replace
+  biological replicates.
+
+**Fraction selection.** Honey: quantification in the ethyl acetate fraction (petroleum
+ether, dichloromethane and n-butanol fractions are used for screening and the UV-Vis
+scan). *C. paradisi*: quantification only in fractions positive in the specific
+phytochemical screening tests (Valentin et al., 2024).
+
+References: Tovar (2013); Recuero Pacheco (2018); Gomes et al. (2021); Valentin et al.
+(2024) — full citations in `methods.json` and in the app.
+
 ## Key warnings from the literature
 
 - **Folin-Ciocalteu** is not specific: reducing sugars, ascorbic acid and proteins

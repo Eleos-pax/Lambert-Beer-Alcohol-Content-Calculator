@@ -19,6 +19,8 @@ import seaborn as sns  # noqa: E402
 from plotly.subplots import make_subplots  # noqa: E402
 from scipy import stats  # noqa: E402
 
+from .i18n import t  # noqa: E402
+
 BLUE, ORANGE, GREEN, RED, GREY = "#0072B2", "#E69F00", "#009E73", "#D55E00", "#7f7f7f"
 
 
@@ -51,24 +53,24 @@ def _df_unk(res):
 
 
 # ------------------------------------------------------------------ Plotly ----
-def plotly_calibration(res, xlab, ylab="Absorbance", title=None, template="plotly_white"):
+def plotly_calibration(res, xlab, ylab=None, title=None, template="plotly_white"):
     bd, pt, uk = _df_band(res), _df_pts(res), _df_unk(res)
     conf = int(res["conf_level"] * 100)
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=np.r_[bd.x, bd.x[::-1]], y=np.r_[bd.pred_high, bd.pred_low[::-1]],
                              fill="toself", fillcolor="rgba(0,114,178,0.10)", line=dict(width=0),
-                             name=f"{conf}% prediction band", hoverinfo="skip"))
+                             name=t("{c}% prediction band", c=conf), hoverinfo="skip"))
     fig.add_trace(go.Scatter(x=np.r_[bd.x, bd.x[::-1]], y=np.r_[bd.conf_high, bd.conf_low[::-1]],
                              fill="toself", fillcolor="rgba(0,114,178,0.25)", line=dict(width=0),
-                             name=f"{conf}% confidence band", hoverinfo="skip"))
+                             name=t("{c}% confidence band", c=conf), hoverinfo="skip"))
     fig.add_trace(go.Scatter(x=bd.x, y=bd.fit, mode="lines", line=dict(color=BLUE, width=2),
                              name=equation(res)))
-    fig.add_trace(go.Scatter(x=pt.x, y=pt.y, mode="markers", name="Standards",
+    fig.add_trace(go.Scatter(x=pt.x, y=pt.y, mode="markers", name=t("Standards"),
                              marker=dict(color=BLUE, size=9, line=dict(color="white", width=1)),
                              hovertemplate="C = %{x}<br>A = %{y:.4f}<extra></extra>"))
     if not uk.empty:
         fig.add_trace(go.Scatter(
-            x=uk.x0, y=uk.y_mean, mode="markers", name="Samples",
+            x=uk.x0, y=uk.y_mean, mode="markers", name=t("Samples"),
             marker=dict(color=ORANGE, size=11, symbol="diamond"),
             error_x=dict(type="data", symmetric=False, array=uk.ci_high - uk.x0,
                          arrayminus=uk.x0 - uk.ci_low, color=ORANGE),
@@ -77,8 +79,8 @@ def plotly_calibration(res, xlab, ylab="Absorbance", title=None, template="plotl
                   annotation_position="top left")
     fig.add_vline(x=res["loq"], line=dict(color=GREEN, dash="dot"), annotation_text="LOQ",
                   annotation_position="top right")
-    fig.update_layout(template=template, title=title or f"Calibration curve (R² = {res['r_squared']:.5f})",
-                      xaxis_title=xlab, yaxis_title=ylab, hovermode="closest",
+    fig.update_layout(template=template, title=title or t("Calibration curve (R² = {r})", r=f"{res['r_squared']:.5f}"),
+                      xaxis_title=xlab, yaxis_title=ylab or t("Absorbance"), hovermode="closest",
                       legend=dict(orientation="h", y=-0.2), height=520)
     return fig
 
@@ -87,8 +89,8 @@ def plotly_diagnostics(res, xlab, template="plotly_white"):
     pt = _df_pts(res)
     theo, emp = _qq(pt.residuals)
     fig = make_subplots(rows=2, cols=2, subplot_titles=(
-        "Residuals vs concentration", "Standardized residuals vs fitted",
-        "Normal Q-Q plot", "Cook's distance"))
+        t("Residuals vs concentration"), t("Standardized residuals vs fitted"),
+        t("Normal Q-Q plot"), t("Cook's distance")))
     fig.add_trace(go.Scatter(x=pt.x, y=pt.residuals, mode="markers", marker_color=BLUE), 1, 1)
     fig.add_hline(y=0, line_color=GREY, row=1, col=1)
     fig.add_trace(go.Scatter(x=pt.fitted, y=pt.std_residuals, mode="markers", marker_color=BLUE), 1, 2)
@@ -100,15 +102,15 @@ def plotly_diagnostics(res, xlab, template="plotly_white"):
     fig.add_trace(go.Bar(x=np.arange(1, len(pt) + 1), y=pt.cooks, marker_color=BLUE), 2, 2)
     fig.add_hline(y=4 / res["n"], line_color=RED, line_dash="dot", row=2, col=2)
     fig.update_xaxes(title_text=xlab, row=1, col=1)
-    fig.update_xaxes(title_text="Fitted absorbance", row=1, col=2)
-    fig.update_xaxes(title_text="Theoretical quantiles", row=2, col=1)
-    fig.update_xaxes(title_text="Observation", row=2, col=2)
+    fig.update_xaxes(title_text=t("Fitted absorbance"), row=1, col=2)
+    fig.update_xaxes(title_text=t("Theoretical quantiles"), row=2, col=1)
+    fig.update_xaxes(title_text=t("Observation"), row=2, col=2)
     fig.update_layout(template=template, showlegend=False, height=650)
     return fig
 
 
 # ------------------------------------------------------ Matplotlib/Seaborn ----
-def mpl_calibration(res, xlab, ylab="Absorbance", title=None, seaborn_style="whitegrid",
+def mpl_calibration(res, xlab, ylab=None, title=None, seaborn_style="whitegrid",
                     use_seaborn=True):
     bd, pt, uk = _df_band(res), _df_pts(res), _df_unk(res)
     conf = int(res["conf_level"] * 100)
@@ -116,26 +118,26 @@ def mpl_calibration(res, xlab, ylab="Absorbance", title=None, seaborn_style="whi
     with ctx:
         fig, ax = plt.subplots(figsize=(8, 5.5), dpi=110)
         ax.fill_between(bd.x, bd.pred_low, bd.pred_high, color=BLUE, alpha=0.10,
-                        label=f"{conf}% prediction")
+                        label=t("{c}% prediction", c=conf))
         ax.fill_between(bd.x, bd.conf_low, bd.conf_high, color=BLUE, alpha=0.25,
-                        label=f"{conf}% confidence")
+                        label=t("{c}% confidence", c=conf))
         ax.plot(bd.x, bd.fit, color=BLUE, lw=2, label=equation(res))
         if use_seaborn:
             sns.scatterplot(x=pt.x, y=pt.y, ax=ax, color=BLUE, s=60, edgecolor="white",
-                            label="Standards", zorder=3)
+                            label=t("Standards"), zorder=3)
         else:
-            ax.scatter(pt.x, pt.y, color=BLUE, s=50, edgecolor="white", label="Standards", zorder=3)
+            ax.scatter(pt.x, pt.y, color=BLUE, s=50, edgecolor="white", label=t("Standards"), zorder=3)
         if not uk.empty:
             ax.errorbar(uk.x0, uk.y_mean, xerr=[uk.x0 - uk.ci_low, uk.ci_high - uk.x0],
-                        fmt="D", color=ORANGE, ms=8, capsize=4, label="Samples", zorder=4)
+                        fmt="D", color=ORANGE, ms=8, capsize=4, label=t("Samples"), zorder=4)
             for _, r in uk.iterrows():
                 ax.annotate(r["sample"], (r.x0, r.y_mean), textcoords="offset points",
                             xytext=(6, -12), fontsize=8, color=ORANGE)
         ax.axvline(res["lod"], color=RED, ls=":", lw=1.2, label=f"LOD = {res['lod']:.3g}")
         ax.axvline(res["loq"], color=GREEN, ls=":", lw=1.2, label=f"LOQ = {res['loq']:.3g}")
         ax.set_xlabel(xlab)
-        ax.set_ylabel(ylab)
-        ax.set_title(title or f"Calibration curve  (R² = {res['r_squared']:.5f})")
+        ax.set_ylabel(ylab or t("Absorbance"))
+        ax.set_title(title or t("Calibration curve (R² = {r})", r=f"{res['r_squared']:.5f}"))
         ax.legend(fontsize=8, loc="upper left", frameon=True)
         fig.tight_layout()
     return fig
@@ -150,24 +152,24 @@ def mpl_diagnostics(res, xlab, seaborn_style="whitegrid", use_seaborn=True):
         a = axs[0, 0]
         a.scatter(pt.x, pt.residuals, color=BLUE)
         a.axhline(0, color=GREY)
-        a.set(title="Residuals vs concentration", xlabel=xlab, ylabel="Residual")
+        a.set(title=t("Residuals vs concentration"), xlabel=xlab, ylabel=t("Residual"))
         a = axs[0, 1]
         a.scatter(pt.fitted, pt.std_residuals, color=BLUE)
         for v in (-2, 2):
             a.axhline(v, color=RED, ls=":")
         a.axhline(0, color=GREY)
-        a.set(title="Standardized residuals", xlabel="Fitted absorbance", ylabel="Standardized r")
+        a.set(title=t("Standardized residuals"), xlabel=t("Fitted absorbance"), ylabel=t("Standardized r"))
         a = axs[1, 0]
         a.scatter(theo, emp, color=BLUE)
         sl, ic = np.polyfit(theo, emp, 1)
         a.plot(theo, ic + sl * theo, color=RED)
-        a.set(title="Normal Q-Q", xlabel="Theoretical quantiles", ylabel="Ordered residuals")
+        a.set(title=t("Normal Q-Q plot"), xlabel=t("Theoretical quantiles"), ylabel=t("Ordered residuals"))
         a = axs[1, 1]
         if use_seaborn:
             sns.histplot(pt.residuals, kde=True, ax=a, color=BLUE)
         else:
             a.hist(pt.residuals, color=BLUE, alpha=0.8)
-        a.set(title="Residual distribution", xlabel="Residual")
+        a.set(title=t("Residual distribution"), xlabel=t("Residual"))
         fig.tight_layout()
     return fig
 
@@ -180,11 +182,11 @@ def fig_to_png(fig, dpi=300) -> bytes:
 
 
 # ------------------------------------------------------------------ Altair ----
-def altair_calibration(res, xlab, ylab="Absorbance"):
+def altair_calibration(res, xlab, ylab=None):
     bd, pt, uk = _df_band(res), _df_pts(res), _df_unk(res)
     X = alt.X("x:Q", title=xlab)
     pred = alt.Chart(bd).mark_area(opacity=0.12, color=BLUE).encode(
-        X, alt.Y("pred_low:Q", title=ylab), alt.Y2("pred_high:Q"))
+        X, alt.Y("pred_low:Q", title=ylab or t("Absorbance")), alt.Y2("pred_high:Q"))
     conf = alt.Chart(bd).mark_area(opacity=0.28, color=BLUE).encode(
         X, alt.Y("conf_low:Q"), alt.Y2("conf_high:Q"))
     line = alt.Chart(bd).mark_line(color=BLUE, strokeWidth=2).encode(X, alt.Y("fit:Q"))
@@ -205,11 +207,11 @@ def altair_calibration(res, xlab, ylab="Absorbance"):
 def altair_residuals(res, xlab):
     pt = _df_pts(res).assign(obs=lambda d: np.arange(1, len(d) + 1))
     base = alt.Chart(pt).mark_circle(size=70, color=BLUE).encode(
-        alt.X("x:Q", title=xlab), alt.Y("std_residuals:Q", title="Standardized residual"),
+        alt.X("x:Q", title=xlab), alt.Y("std_residuals:Q", title=t("Standardized residual")),
         tooltip=["obs", "x", alt.Tooltip("std_residuals:Q", format=".3f")])
     rules = alt.Chart(pd.DataFrame({"y": [-2, 0, 2]})).mark_rule(strokeDash=[4, 4], color=RED).encode(
         y=alt.Y("y:Q"))
-    return (base + rules).properties(title="Standardized residuals", height=300)
+    return (base + rules).properties(title=t("Standardized residuals"), height=300)
 
 
 def plotly_standard_addition(res_add, sa, xlab, template="plotly_white"):
@@ -222,12 +224,12 @@ def plotly_standard_addition(res_add, sa, xlab, template="plotly_white"):
     fig.add_trace(go.Scatter(x=gx, y=a + b * gx, mode="lines", line=dict(color=BLUE, dash="dash"),
                              name=f"A = {b:.5f}·C_added + {a:.5f}"))
     fig.add_trace(go.Scatter(x=pt.x, y=pt.y, mode="markers", marker=dict(color=BLUE, size=9),
-                             name="Spiked aliquots"))
+                             name=t("Spiked aliquots")))
     fig.add_trace(go.Scatter(x=[x0], y=[0], mode="markers", marker=dict(color=ORANGE, size=13, symbol="diamond"),
                              error_x=dict(type="data", array=[sa["ci_high"] - sa["C"]], color=ORANGE),
                              name=f"x-intercept → C = {sa['C']:.4g}"))
     fig.add_hline(y=0, line_color=GREY)
     fig.add_vline(x=0, line_color=GREY)
-    fig.update_layout(template=template, title="Standard addition", xaxis_title=xlab,
-                      yaxis_title="Absorbance", legend=dict(orientation="h", y=-0.2), height=480)
+    fig.update_layout(template=template, title=t("Standard addition"), xaxis_title=xlab,
+                      yaxis_title=t("Absorbance"), legend=dict(orientation="h", y=-0.2), height=480)
     return fig

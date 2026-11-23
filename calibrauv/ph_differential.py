@@ -14,6 +14,8 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
+from .i18n import t
+
 COLUMNS = ["sample", "A520_pH1", "A700_pH1", "A520_pH4.5", "A700_pH4.5",
            "dilution_factor", "extract_volume_mL", "mass_g"]
 
@@ -52,10 +54,10 @@ def warnings(rep: pd.DataFrame, a_range=(0.1, 1.0)) -> list[str]:
     msgs = []
     for _, r in rep.iterrows():
         if r["A"] <= 0:
-            msgs.append(f"'{r['sample']}': corrected A ≤ 0 — no monomeric anthocyanins detected "
-                        "or a reading error.")
+            msgs.append(t("'{s}': corrected A ≤ 0 — no monomeric anthocyanins detected or a "
+                          "reading error.", s=r["sample"]))
         a1 = r["A520_pH1"]
         if not (a_range[0] <= a1 <= a_range[1]):
-            msgs.append(f"'{r['sample']}': A520 at pH 1.0 = {a1:.3f} outside {a_range[0]}–{a_range[1]}; "
-                        "adjust the dilution factor.")
+            msgs.append(t("'{s}': A520 at pH 1.0 = {a} outside {lo}–{hi}; adjust the dilution factor.",
+                          s=r["sample"], a=f"{a1:.3f}", lo=a_range[0], hi=a_range[1]))
     return list(dict.fromkeys(msgs))

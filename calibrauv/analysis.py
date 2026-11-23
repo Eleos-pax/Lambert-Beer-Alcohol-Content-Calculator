@@ -12,6 +12,8 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
+from .i18n import t
+
 # ------------------------------------------------------------ unit handling
 # Amount factor: (concentration unit × L) → (mg) for mass units, (µmol) for molar units
 _AMOUNT = {
@@ -21,9 +23,39 @@ _AMOUNT = {
 }
 
 
-def content_unit(conc_unit: str, standard_abbr: str | None = None, basis: str = "g") -> str:
+SCALES = {"mg": 1.0, "µg": 1e3}   # only for mass-based units
+
+
+def is_mass_unit(conc_unit: str) -> bool:
+    return _AMOUNT[conc_unit][1] == "mg"
+
+
+def content_unit(conc_unit: str, standard_abbr: str | None = None, basis: str = "g",
+                 scale: str = "mg") -> str:
     _, amt = _AMOUNT[conc_unit]
+    if amt == "mg":
+        amt = scale
     return f"{amt} {standard_abbr}/{basis}" if standard_abbr else f"{amt}/{basis}"
+
+
+def content_from_c(c, rows: pd.DataFrame, conc_unit: str, scale: str = "mg") -> pd.Series:
+    """Content per gram from a concentration C (curve units) for each row.
+
+    Two ways (the first available is used, per row):
+      * extract_conc_ug_mL given: Content = C · DF / C_extract  (extract dissolved at a known
+        concentration, e.g. 50 µg/mL) → mg/g = C(mg/L) · DF / C_extract(mg/L) · 1000
+      * extract_volume_mL and mass_g: Content = C · V · DF / m
+    """
+    factor, amt = _AMOUNT[conc_unit]
+    if amt == "mg":
+        factor *= SCALES[scale]
+    num = lambda col: pd.to_numeric(rows[col], errors="coerce") if col in rows else \
+        pd.Series(np.nan, index=rows.index)
+    df_ = num("dilution_factor").fillna(1.0)
+    c = pd.Series(np.asarray(c, float), index=rows.index)
+    by_conc = c * factor * df_ / num("extract_conc_ug_mL") * 1000
+    by_mass = c * factor * (num("extract_volume_mL") / 1000) * df_ / num("mass_g")
+    return by_conc.where(by_conc.notna(), by_mass)
 
 
 def intercept(res: dict) -> float:
@@ -73,18 +105,18 @@ def apply_lod_basis(res: dict, basis: str, blank_readings=None) -> dict:
     if basis == "sa":
         inter = res["coefficients"]["intercept"]
         if inter is None:
-            sigma, basis, note = res["s_yx"], "syx", "No intercept (model through origin): s(y/x) used."
+            sigma, basis, note = res["s_yx"], "syx", t("No intercept (model through origin): s(y/x) used.")
         else:
             sigma = inter["se"]
     elif basis == "blanks":
         vals = pd.to_numeric(pd.Series(blank_readings if blank_readings is not None else []),
                              errors="coerce").dropna().to_numpy()
         if len(vals) < 2:
-            sigma, basis, note = res["s_yx"], "syx", "Fewer than 2 blank readings: s(y/x) used."
+            sigma, basis, note = res["s_yx"], "syx", t("Fewer than 2 blank readings: s(y/x) used.")
         else:
             sigma = float(np.std(vals, ddof=1))
             if len(vals) < 10:
-                note = f"Only {len(vals)} blank readings; ICH Q2 suggests at least 10."
+                note = t("Only {n} blank readings; ICH Q2 suggests at least 10.", n=len(vals))
     else:
         sigma, basis = res["s_yx"], "syx"
     res["lod_sigma"], res["lod_basis"], res["lod_note"] = sigma, basis, note
@@ -96,24 +128,22 @@ def apply_lod_basis(res: dict, basis: str, blank_readings=None) -> dict:
 
 
 # ------------------------------------------------------- content in sample
-def sample_content(res: dict, samples_corr: pd.DataFrame, conc_unit: str) -> pd.DataFrame:
-    """Content = C · V_extract · DF / m_sample for each replicate, then mean ± SD per sample.
+def sample_content(res: dict, samples_corr: pd.DataFrame, conc_unit: str,
+                   scale: str = "mg") -> pd.DataFrame:
+    """Content per replicate (see content_from_c), then mean ± SD and RSD% per sample.
 
-    Columns used: sample, absorbance (corrected), extract_volume_mL, dilution_factor, mass_g.
+    The calibration CI is scaled by the same factor when all replicates of a sample share
+    the same dilution and extract data.
     """
     if samples_corr is None or samples_corr.empty:
         return pd.DataFrame()
-    factor, _ = _AMOUNT[conc_unit]
-    s = samples_corr.copy()
-    for col, default in (("extract_volume_mL", np.nan), ("dilution_factor", 1.0), ("mass_g", np.nan)):
-        s[col] = pd.to_numeric(s[col], errors="coerce") if col in s else default
-    s["dilution_factor"] = s["dilution_factor"].fillna(1.0)
+    s = samples_corr.dropna(subset=["absorbance"]).copy()
     s["C"] = inverse_predict(res, s["absorbance"])
-    s["content"] = s["C"] * (s["extract_volume_mL"] / 1000) * s["dilution_factor"] / s["mass_g"] * factor
-    s = s.dropna(subset=["absorbance"])
+    s["content"] = content_from_c(s["C"], s, conc_unit, scale)
     rows = []
     by_name = {u["sample"]: u for u in res["unknowns"]}
-    t = res["t_crit"]
+    tq = res["t_crit"]
+    cols = [c for c in ("extract_conc_ug_mL", "extract_volume_mL", "dilution_factor", "mass_g") if c in s]
     for name, g in s.groupby("sample", sort=False):
         cont = g["content"].dropna()
         n = len(cont)
@@ -123,14 +153,54 @@ def sample_content(res: dict, samples_corr: pd.DataFrame, conc_unit: str) -> pd.
                "content_mean": mean, "content_sd": sd,
                "content_rsd_pct": 100 * sd / abs(mean) if n > 1 and mean else np.nan,
                "ci_low": np.nan, "ci_high": np.nan}
-        # Calibration CI scaled by the factors, only when they are identical across replicates
-        same = all(g[c].nunique(dropna=False) == 1 for c in ("extract_volume_mL", "dilution_factor", "mass_g"))
+        same = all(g[c].nunique(dropna=False) == 1 for c in cols)
         u = by_name.get(str(name))
-        if same and n and u is not None:
-            k = g["extract_volume_mL"].iloc[0] / 1000 * g["dilution_factor"].iloc[0] / g["mass_g"].iloc[0] * factor
-            row["ci_low"], row["ci_high"] = (u["x0"] - t * u["s_x0"]) * k, (u["x0"] + t * u["s_x0"]) * k
+        if same and n and u is not None and u["x0"]:
+            k = float(content_from_c([1.0], g.iloc[[0]], conc_unit, scale).iloc[0])
+            row["ci_low"], row["ci_high"] = (u["x0"] - tq * u["s_x0"]) * k, (u["x0"] + tq * u["s_x0"]) * k
         rows.append(row)
     return pd.DataFrame(rows)
+
+
+def tannins_by_difference(res: dict, data: pd.DataFrame, conc_unit: str, casein_df: float = 3.0,
+                          reagent_blank: float = 0.0, scale: str = "mg") -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Tannins = TP − RP (casein precipitation, Folin-Ciocalteu by difference).
+
+    data columns (one row per replicate): sample, A_TP, A_RP, and optionally sample_blank,
+    extract_conc_ug_mL, extract_volume_mL, dilution_factor, mass_g.
+    RP is read in the casein supernatant, so it is multiplied by casein_df before subtracting.
+    Returns (per replicate, per sample summary).
+    """
+    d = data.copy()
+    for c in ("A_TP", "A_RP", "sample_blank"):
+        d[c] = pd.to_numeric(d[c], errors="coerce") if c in d else np.nan
+    d = d.dropna(subset=["A_TP", "A_RP"])
+    if d.empty:
+        return pd.DataFrame(), pd.DataFrame()
+    sb = d["sample_blank"].fillna(0.0)
+    d["C_TP"] = inverse_predict(res, d["A_TP"] - reagent_blank - sb)
+    d["C_RP"] = inverse_predict(res, d["A_RP"] - reagent_blank - sb) * casein_df
+    d["C_tannins"] = d["C_TP"] - d["C_RP"]
+    d["TP_content"] = content_from_c(d["C_TP"], d, conc_unit, scale)
+    d["RP_content"] = content_from_c(d["C_RP"], d, conc_unit, scale)
+    d["tannins_content"] = content_from_c(d["C_tannins"], d, conc_unit, scale)
+
+    def summ(g):
+        out = {"n": len(g)}
+        for col in ("C_TP", "C_RP", "C_tannins", "TP_content", "RP_content", "tannins_content"):
+            v = g[col].dropna()
+            out[f"{col}_mean"] = v.mean() if len(v) else np.nan
+            out[f"{col}_sd"] = v.std(ddof=1) if len(v) > 1 else np.nan
+        m, sd = out["tannins_content_mean"], out["tannins_content_sd"]
+        out["tannins_rsd_pct"] = 100 * sd / abs(m) if m == m and sd == sd and m else np.nan
+        out["tannin_fraction_pct"] = 100 * out["C_tannins_mean"] / out["C_TP_mean"] \
+            if out["C_TP_mean"] else np.nan
+        return pd.Series(out)
+
+    value_cols = [c for c in d.columns if c != "sample"]
+    summary = d.groupby("sample", sort=False)[value_cols].apply(summ).reset_index()
+    summary["n"] = summary["n"].astype(int)
+    return d, summary
 
 
 # --------------------------------------------------------- standard addition
@@ -224,10 +294,10 @@ def curve_verdict(res: dict, r2_min: float, alpha: float = 0.05) -> tuple[str, l
     """'accepted' | 'rejected' with reasons (R² below threshold or lack of fit)."""
     reasons = []
     if res["r_squared"] < r2_min:
-        reasons.append(f"R² = {res['r_squared']:.4f} < {r2_min}")
+        reasons.append(f"R² = {res['r_squared']:.4f} < {r2_min}")  # noqa
     lof = res["diagnostics"].get("lack_of_fit")
     if lof is not None and lof["p"] < alpha:
-        reasons.append(f"significant lack of fit (p = {lof['p']:.4f})")
+        reasons.append(t("significant lack of fit (p = {p})", p=f"{lof['p']:.4f}"))
     return ("rejected" if reasons else "accepted"), reasons
 
 

@@ -131,6 +131,23 @@ result is given in µmol/g. Each replicate is computed separately and reported a
 mean ± SD and RSD%. When V, DF and m are identical for all replicates, the calibration
 confidence interval of C is scaled by the same factor.
 
+### Content from an extract solution of known concentration
+
+When the extract is dissolved at a known concentration C_extract (e.g. 50 µg/mL) and
+that solution is analysed:
+
+$$\text{Content}\ (\text{mg/g}) = \frac{C \cdot DF}{C_{extract}}\cdot 1000$$
+
+with C and C_extract in the same units (µg/mL). Multiply by 1000 for µg/g.
+
+### Tannins by difference (casein precipitation)
+
+$$\text{Tannins} = TP - RP\cdot DF_{casein}$$
+
+TP: total polyphenols; RP: residual polyphenols in the supernatant after casein, which
+is diluted by DF_casein (×3 when 6 mL of sample are mixed with 12 mL of water). Both are
+read on the same Folin-Ciocalteu curve (Gomes et al. 2021).
+
 ## 11. Standard addition
 
 Equal aliquots of sample are spiked with increasing amounts of standard. Regressing

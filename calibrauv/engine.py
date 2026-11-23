@@ -5,6 +5,7 @@ from __future__ import annotations
 import pandas as pd
 
 from .engine_python import compute_python
+from .i18n import t
 from .engine_r import REngineError, compute_r, find_rscript
 
 # Factors to convert 1 concentration unit to mol/L.
@@ -42,7 +43,7 @@ def compute(standards: pd.DataFrame, samples: pd.DataFrame | None = None, *,
             if engine == "R":
                 raise
             res = compute_python(standards, samples, **kwargs)
-            res["engine_note"] = f"Python was used because R is not available: {exc}"
+            res["engine_note"] = t("Python was used because R is not available: {e}", e=exc)
             return res
     res = compute_python(standards, samples, **kwargs)
     res["engine_note"] = None

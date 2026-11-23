@@ -1,18 +1,20 @@
 {
   "_meta": {
     "title": "Method presets for UV-Vis quantification of secondary metabolites",
-    "version": "1.0",
+    "version": "1.1",
     "date": "2026-11-22",
     "note": "Values taken from the literature listed in 'references'. Items whose 'source' is 'general_knowledge' are standard analytical practice not taken from those references: verify them against your laboratory protocol before using them in production. Molar masses of the reference standards are general reference values (general_knowledge).",
     "how_to_edit": "Add or edit methods here; the app reads this file at start-up. Each value should state its 'source' ('literature' or 'general_knowledge')."
   },
-
   "acceptance": {
     "r2_min": 0.99,
     "r2_recommended": 0.995,
     "min_levels": 5,
     "replicates_per_level": 3,
-    "absorbance_range": [0.1, 1.0],
+    "absorbance_range": [
+      0.1,
+      1.0
+    ],
     "absorbance_range_source": "general_knowledge",
     "design_source": "general_knowledge (ICH Q2)",
     "rsd_criteria_pct": {
@@ -20,14 +22,19 @@
       "Complex plant matrices (RSD ≤ 5%)": 5.0
     },
     "recovery_criteria_pct": {
-      "AOAC, complex matrices (80–120%)": [80, 120],
-      "Pharmaceutical (98–102%)": [98, 102]
+      "AOAC, complex matrices (80–120%)": [
+        80,
+        120
+      ],
+      "Pharmaceutical (98–102%)": [
+        98,
+        102
+      ]
     },
     "recovery_source": "AOAC criterion for complex matrices cited by Ruiz-Vásquez et al. (2026); 98–102% is usual in pharmaceutical analysis",
     "standard_addition_slope_diff_pct": 3.0,
     "standard_addition_source": "Ruiz-Vásquez et al. (2026)"
   },
-
   "methods": [
     {
       "id": "GENERIC",
@@ -40,7 +47,236 @@
       "result_unit_label": "",
       "default_unit": "mol/L",
       "warnings": [],
-      "references": []
+      "references": [],
+      "name_es": "Calibración genérica de Lambert-Beer",
+      "principle_es": "Cualquier analito (o derivado coloreado) cuya absorbancia siga A = ε·l·c."
+    },
+    {
+      "id": "LAB_TPC_FOLIN_NAOH",
+      "name": "Lab protocol · Total phenolics – Folin-Ciocalteu / NaOH (760 nm)",
+      "name_es": "Protocolo del laboratorio · Fenoles totales – Folin-Ciocalteu / NaOH (760 nm)",
+      "group": "lab",
+      "type": "curve",
+      "analyte": "Total phenolic compounds",
+      "analyte_es": "Compuestos fenólicos totales",
+      "principle": "The Folin-Ciocalteu reagent reacts in basic medium with phenolic substances giving a blue colour.",
+      "principle_es": "El reactivo de Folin-Ciocalteu reacciona en medio básico con las sustancias fenólicas y da una coloración azul.",
+      "basis": "Methodology of Tovar (2013), applied at Universidad de Sucre by Recuero Pacheco (2018).",
+      "basis_es": "Se sigue la metodología de Tovar (2013), aplicada en la Universidad de Sucre por Recuero Pacheco (2018).",
+      "standards": [
+        {
+          "name": "Gallic acid",
+          "name_es": "Ácido gálico",
+          "abbr": "GAE",
+          "abbr_es": "EAG",
+          "molar_mass": 170.12
+        }
+      ],
+      "variants": [
+        {
+          "name": "760 nm, 3 min in the dark, NaOH 0.35 M, reagent 1:50 (Tovar 2013)",
+          "name_es": "760 nm, 3 min en oscuridad, NaOH 0,35 M, reactivo 1:50 (Tovar 2013)",
+          "wavelength_nm": 760,
+          "reaction_time_min": 3,
+          "source": "literature",
+          "ref": "tovar2013"
+        }
+      ],
+      "calibration_levels_ug_mL": [
+        0,
+        2,
+        4,
+        6,
+        8,
+        10
+      ],
+      "sample_concentration_ug_mL": 50,
+      "replicates": 3,
+      "steps": [
+        "Dilute the Folin-Ciocalteu reagent with distilled water 1:50 v/v.",
+        "Prepare the calibration curve with gallic acid at 0, 2, 4, 6, 8 and 10 µg/mL.",
+        "Mix 500 µL of diluted reagent with 500 µL of standard. For samples, take 500 µL of a 50 µg/mL solution.",
+        "Add 1000 µL of 0.35 M NaOH as basic medium, to accelerate the reaction and form the coloured complex.",
+        "Leave in the dark for 3 minutes.",
+        "Measure the absorbance at 760 nm."
+      ],
+      "steps_es": [
+        "Diluir el reactivo de Folin-Ciocalteu con agua destilada en proporción 1:50 v/v.",
+        "Preparar la curva de calibración con ácido gálico a 0, 2, 4, 6, 8 y 10 µg/mL.",
+        "Mezclar 500 µL del reactivo diluido con 500 µL de estándar. Para las muestras, tomar 500 µL de una solución de 50 µg/mL.",
+        "Añadir 1000 µL de NaOH 0,35 M como medio básico, para acelerar la reacción y formar el complejo coloreado.",
+        "Dejar en oscuridad durante 3 minutos.",
+        "Medir la absorbancia a 760 nm."
+      ],
+      "result_unit_label": "mg {abbr}/g extract",
+      "result_unit_label_es": "mg {abbr}/g de extracto",
+      "default_unit": "µg/mL",
+      "default_extract_conc_ug_mL": 50,
+      "warnings": [
+        "This protocol uses two Folin-Ciocalteu variants: NaOH 0.35 M with reagent 1:50 (phenolics) and Na2CO3 7.5% with reagent 10% (tannins). Decide whether to harmonize a single protocol and standard.",
+        "Replicates are technical (triplicate of the same sample); they do not replace biological replicates."
+      ],
+      "warnings_es": [
+        "Este protocolo usa dos variantes de Folin-Ciocalteu: NaOH 0,35 M con reactivo 1:50 (fenoles) y Na2CO3 7,5 % con reactivo al 10 % (taninos). Falta decidir si se homogeniza un solo protocolo y un solo estándar.",
+        "La réplica es técnica (triplicado de la misma muestra); no reemplaza réplicas biológicas."
+      ],
+      "references": [
+        "tovar2013",
+        "recuero2018"
+      ]
+    },
+    {
+      "id": "LAB_TFC_NANO2",
+      "name": "Lab protocol · Flavonoids – NaNO2–AlCl3–NaOH (500 nm)",
+      "name_es": "Protocolo del laboratorio · Flavonoides – NaNO2–AlCl3–NaOH (500 nm)",
+      "group": "lab",
+      "type": "curve",
+      "analyte": "Flavonoids",
+      "analyte_es": "Flavonoides",
+      "principle": "The OH groups of flavonoids react with Al3+ forming a pink complex (in the presence of sodium nitrite).",
+      "principle_es": "Los grupos OH de los flavonoides reaccionan con el Al³⁺ y forman un complejo rosado (en presencia de nitrito de sodio).",
+      "basis": "Methodology of Tovar (2013), applied at Universidad de Sucre by Recuero Pacheco (2018).",
+      "basis_es": "Se sigue la metodología de Tovar (2013), aplicada en la Universidad de Sucre por Recuero Pacheco (2018).",
+      "standards": [
+        {
+          "name": "Quercetin",
+          "name_es": "Quercetina",
+          "abbr": "QE",
+          "abbr_es": "EQ",
+          "molar_mass": 302.24
+        },
+        {
+          "name": "Catechin",
+          "name_es": "Catequina",
+          "abbr": "CE",
+          "abbr_es": "EC",
+          "molar_mass": 290.27
+        }
+      ],
+      "variants": [
+        {
+          "name": "500 nm; NaNO2 5% 5 min, AlCl3 2.5% exactly 6 min, NaOH 1 M, read after 5 min (Tovar 2013)",
+          "name_es": "500 nm; NaNO2 5 % 5 min, AlCl3 2,5 % exactamente 6 min, NaOH 1 M, leer a los 5 min (Tovar 2013)",
+          "wavelength_nm": 500,
+          "reaction_time_min": 16,
+          "source": "literature",
+          "ref": "tovar2013"
+        }
+      ],
+      "calibration_levels_ug_mL": [
+        5,
+        10,
+        20,
+        40
+      ],
+      "replicates": 3,
+      "steps": [
+        "Prepare the calibration curve with quercetin at 5, 10, 20 and 40 µg/mL.",
+        "Take 1350 µL of standard or sample and add 75 µL of 5% NaNO2. Homogenize and let react for 5 minutes.",
+        "Add 300 µL of 2.5% AlCl3, shake vigorously and let react for exactly 6 minutes.",
+        "Immediately add 500 µL of 1 M NaOH and 500 µL of distilled water, and homogenize.",
+        "Read the absorbance at 500 nm after 5 minutes."
+      ],
+      "steps_es": [
+        "Preparar la curva de calibración con quercetina a 5, 10, 20 y 40 µg/mL.",
+        "Tomar 1350 µL de estándar o de muestra y añadir 75 µL de NaNO₂ al 5 %. Homogeneizar y dejar reaccionar 5 minutos.",
+        "Añadir 300 µL de AlCl₃ al 2,5 %, agitar vigorosamente y dejar reaccionar exactamente 6 minutos.",
+        "Añadir de inmediato 500 µL de NaOH 1 M y 500 µL de agua destilada, y homogeneizar.",
+        "Leer la absorbancia a 500 nm después de 5 minutos."
+      ],
+      "result_unit_label": "mg {abbr}/g extract",
+      "result_unit_label_es": "mg {abbr}/g de extracto",
+      "default_unit": "µg/mL",
+      "warnings": [
+        "Only 4 calibration levels: ICH Q2 recommends at least 5. Consider adding a level (e.g. 30 µg/mL).",
+        "NaNO2–AlCl3–NaOH responds mainly to flavonoids with a catechol group; with quercetin as standard it may underestimate. Options: catechin as standard (available above) or direct AlCl3 at about 415 nm with quercetin (see the 'Total flavonoids – aluminium chloride' preset).",
+        "In honey, also use a sample blank (Sultana et al., 2024): fill the sample_blank column.",
+        "Replicates are technical (triplicate of the same sample); they do not replace biological replicates."
+      ],
+      "warnings_es": [
+        "Solo 4 niveles de calibración: ICH Q2 recomienda al menos 5. Considere agregar un nivel (p. ej. 30 µg/mL).",
+        "El método NaNO2–AlCl3–NaOH responde sobre todo a flavonoides con grupo catecol; con quercetina como estándar puede subestimar. Opciones: catequina como estándar (disponible arriba) o AlCl3 directo a unos 415 nm con quercetina (ver el método 'Flavonoides totales – cloruro de aluminio').",
+        "En miel se recomienda además un blanco de muestra (Sultana et al., 2024): llene la columna sample_blank.",
+        "La réplica es técnica (triplicado de la misma muestra); no reemplaza réplicas biológicas."
+      ],
+      "references": [
+        "tovar2013",
+        "recuero2018"
+      ]
+    },
+    {
+      "id": "LAB_TANNINS_CASEIN",
+      "name": "Lab protocol · Tannins – Folin-Ciocalteu with casein precipitation (difference)",
+      "name_es": "Protocolo del laboratorio · Taninos – Folin-Ciocalteu con precipitación por caseína (diferencia)",
+      "group": "lab",
+      "type": "curve",
+      "difference": true,
+      "analyte": "Tannins = total polyphenols (TP) − residual polyphenols after casein (RP)",
+      "analyte_es": "Taninos = polifenoles totales (PT) − polifenoles residuales tras la caseína (PR)",
+      "principle": "Casein binds and precipitates tannins; Folin-Ciocalteu is measured before (TP) and after (RP) complexation, and tannins are obtained by difference.",
+      "principle_es": "La caseína se une a los taninos y los precipita; se mide Folin-Ciocalteu antes (PT) y después (PR) de la complejación, y los taninos se obtienen por diferencia.",
+      "basis": "Methodology of Gomes et al. (2021) with slight modifications.",
+      "basis_es": "Se sigue la metodología de Gomes et al. (2021) con ligeras modificaciones.",
+      "standards": [
+        {
+          "name": "Tannic acid",
+          "name_es": "Ácido tánico",
+          "abbr": "TAE",
+          "abbr_es": "EAT",
+          "molar_mass": 1701.2
+        }
+      ],
+      "variants": [
+        {
+          "name": "760 nm; Na2CO3 7.5% 1 mL + Folin-Ciocalteu 10% 700 µL (Gomes et al. 2021)",
+          "name_es": "760 nm; Na2CO3 7,5 % 1 mL + Folin-Ciocalteu 10 % 700 µL (Gomes et al. 2021)",
+          "wavelength_nm": 760,
+          "source": "literature",
+          "ref": "gomes2021"
+        }
+      ],
+      "calibration_levels_ug_mL": [
+        0.5,
+        2.0,
+        4.0,
+        6.0,
+        8.0,
+        10.0,
+        12.0,
+        14.0
+      ],
+      "casein_dilution_factor": 3.0,
+      "casein_dilution_note": "6 mL of sample + 12 mL of water = 18 mL → residual polyphenols are diluted ×3 relative to TP (assuming the volume of 1 g of casein is negligible). Adjust if your volumes differ.",
+      "casein_dilution_note_es": "6 mL de muestra + 12 mL de agua = 18 mL → los polifenoles residuales quedan diluidos ×3 respecto a PT (suponiendo despreciable el volumen de 1 g de caseína). Ajústelo si sus volúmenes son otros.",
+      "replicates": 3,
+      "steps": [
+        "A. Calibration curve: tannic acid standards at 0.5, 2.0, 4.0, 6.0, 8.0, 10.0, 12.0 and 14.0 µg/mL; add 1 mL of 7.5% Na2CO3 and 700 µL of 10% Folin-Ciocalteu; measure at 760 nm.",
+        "B. Total polyphenols (TP): treat a small aliquot of sample like the standards; adjust the aliquot or dilution so the reading falls within the curve; read at the same wavelength.",
+        "C. Casein complexation: mix 6 mL of sample with 12 mL of distilled water and 1 g of casein; let complex for 30 minutes; separate the supernatant by filtration or centrifugation.",
+        "D. Residual polyphenols (RP): with the supernatant, repeat the total polyphenols (TP) procedure and calculate with the same curve.",
+        "Tannins = TP − RP."
+      ],
+      "steps_es": [
+        "A. Curva de calibración: estándares de ácido tánico a 0,5; 2,0; 4,0; 6,0; 8,0; 10,0; 12,0 y 14,0 µg/mL; añadir 1 mL de Na₂CO₃ al 7,5 % y 700 µL de Folin-Ciocalteu al 10 %; medir a 760 nm.",
+        "B. Polifenoles totales (PT): tratar una alícuota pequeña de la muestra igual que los estándares; ajustar la alícuota o la dilución para que la lectura caiga dentro del rango de la curva; leer a la misma longitud de onda.",
+        "C. Complejación con caseína: mezclar 6 mL de la muestra con 12 mL de agua destilada y 1 g de caseína; dejar complejar 30 minutos; separar el sobrenadante por filtración o centrifugación.",
+        "D. Polifenoles residuales (PR): con el sobrenadante, repetir el procedimiento de polifenoles totales (PT) y calcular con la misma curva.",
+        "Taninos = PT − PR."
+      ],
+      "result_unit_label": "mg {abbr}/g extract",
+      "result_unit_label_es": "mg {abbr}/g de extracto",
+      "default_unit": "µg/mL",
+      "warnings": [
+        "Residual polyphenols are measured in the diluted supernatant: the casein dilution factor (default ×3) is applied to RP before the difference.",
+        "Replicates are technical (triplicate of the same sample); they do not replace biological replicates."
+      ],
+      "warnings_es": [
+        "Los polifenoles residuales se miden en el sobrenadante diluido: el factor de dilución de la caseína (×3 por defecto) se aplica a PR antes de la diferencia.",
+        "La réplica es técnica (triplicado de la misma muestra); no reemplaza réplicas biológicas."
+      ],
+      "references": [
+        "gomes2021"
+      ]
     },
     {
       "id": "TPC_FOLIN",
@@ -49,17 +285,68 @@
       "analyte": "Total phenolic content (reducing compounds, mainly phenolics)",
       "principle": "Reduction of the phosphomolybdate–phosphotungstate complex in alkaline medium (Na2CO3) to a blue complex.",
       "standards": [
-        {"name": "Gallic acid", "abbr": "GAE", "molar_mass": 170.12},
-        {"name": "Catechin", "abbr": "CE", "molar_mass": 290.27},
-        {"name": "Pyrogallol", "abbr": "PE", "molar_mass": 126.11}
+        {
+          "name": "Gallic acid",
+          "abbr": "GAE",
+          "molar_mass": 170.12,
+          "name_es": "Ácido gálico",
+          "abbr_es": "EAG"
+        },
+        {
+          "name": "Catechin",
+          "abbr": "CE",
+          "molar_mass": 290.27,
+          "name_es": "Catequina",
+          "abbr_es": "EC"
+        },
+        {
+          "name": "Pyrogallol",
+          "abbr": "PE",
+          "molar_mass": 126.11,
+          "name_es": "Pirogalol",
+          "abbr_es": "EP"
+        }
       ],
       "variants": [
-        {"name": "765 nm, 60 min, Na2CO3 14.05% (Ruiz-Vásquez 2026)", "wavelength_nm": 765, "reaction_time_min": 60, "source": "literature", "ref": "ruizvasquez2026"},
-        {"name": "760 nm, 30 min, pyrogallol standard (Blainski 2013)", "wavelength_nm": 760, "reaction_time_min": 30, "source": "literature", "ref": "blainski2013"},
-        {"name": "750 nm, 20 min at 50 °C (Alnedhary 2026)", "wavelength_nm": 750, "reaction_time_min": 20, "source": "literature", "ref": "alnedhary2026"}
+        {
+          "name": "765 nm, 60 min, Na2CO3 14.05% (Ruiz-Vásquez 2026)",
+          "wavelength_nm": 765,
+          "reaction_time_min": 60,
+          "source": "literature",
+          "ref": "ruizvasquez2026",
+          "name_es": "765 nm, 60 min, Na2CO3 14,05 % (Ruiz-Vásquez 2026)"
+        },
+        {
+          "name": "760 nm, 30 min, pyrogallol standard (Blainski 2013)",
+          "wavelength_nm": 760,
+          "reaction_time_min": 30,
+          "source": "literature",
+          "ref": "blainski2013",
+          "name_es": "760 nm, 30 min, estándar de pirogalol (Blainski 2013)"
+        },
+        {
+          "name": "750 nm, 20 min at 50 °C (Alnedhary 2026)",
+          "wavelength_nm": 750,
+          "reaction_time_min": 20,
+          "source": "literature",
+          "ref": "alnedhary2026",
+          "name_es": "750 nm, 20 min a 50 °C (Alnedhary 2026)"
+        }
       ],
-      "reaction_time_range_min": [20, 60],
-      "linear_range_examples_ug_mL": [[1, 10], [10, 50]],
+      "reaction_time_range_min": [
+        20,
+        60
+      ],
+      "linear_range_examples_ug_mL": [
+        [
+          1,
+          10
+        ],
+        [
+          10,
+          50
+        ]
+      ],
       "result_unit_label": "mg {abbr}/g",
       "default_unit": "µg/mL",
       "warnings": [
@@ -67,7 +354,23 @@
         "The order of addition matters: making the medium alkaline before adding the reagent can cause condensation and bias (Chen et al. 2015).",
         "The result depends on the chosen standard; always report it."
       ],
-      "references": ["blainski2013", "ruizvasquez2026", "chen2015", "matic2017", "stratil2006", "nastasi2025"]
+      "references": [
+        "blainski2013",
+        "ruizvasquez2026",
+        "chen2015",
+        "matic2017",
+        "stratil2006",
+        "nastasi2025"
+      ],
+      "name_es": "Fenoles totales – Folin-Ciocalteu",
+      "analyte_es": "Contenido de fenoles totales (compuestos reductores, principalmente fenólicos)",
+      "principle_es": "Reducción del complejo fosfomolibdato-fosfotungstato en medio alcalino (Na2CO3) a un complejo azul.",
+      "warnings_es": [
+        "No es específico: azúcares reductores, ácido ascórbico, proteínas y otros reductores interfieren.",
+        "El orden de adición importa: basificar antes del reactivo puede provocar condensaciones y sesgo (Chen et al. 2015).",
+        "El resultado depende del estándar elegido; siempre reportarlo."
+      ],
+      "result_unit_label_es": "mg {abbr}/g"
     },
     {
       "id": "TFC_ALCL3",
@@ -76,18 +379,72 @@
       "analyte": "Flavones and flavonols (Al3+ complex with keto and ortho-dihydroxy groups)",
       "principle": "Formation of a coloured Al3+ chelate with flavonoid keto/ortho-dihydroxy groups.",
       "standards": [
-        {"name": "Quercetin", "abbr": "QE", "molar_mass": 302.24},
-        {"name": "Rutin", "abbr": "RE", "molar_mass": 610.52},
-        {"name": "Catechin", "abbr": "CE", "molar_mass": 290.27}
+        {
+          "name": "Quercetin",
+          "abbr": "QE",
+          "molar_mass": 302.24,
+          "name_es": "Quercetina",
+          "abbr_es": "EQ"
+        },
+        {
+          "name": "Rutin",
+          "abbr": "RE",
+          "molar_mass": 610.52,
+          "name_es": "Rutina",
+          "abbr_es": "ER"
+        },
+        {
+          "name": "Catechin",
+          "abbr": "CE",
+          "molar_mass": 290.27,
+          "name_es": "Catequina",
+          "abbr_es": "EC"
+        }
       ],
       "variants": [
-        {"name": "Direct AlCl3 (Woisky & Salatino), 420 nm", "wavelength_nm": 420, "source": "literature"},
-        {"name": "AlCl3 + CH3COOK (Chang et al.), 415 nm", "wavelength_nm": 415, "source": "literature"},
-        {"name": "AlCl3 5% in 80% ethanol, 25 min, direct dilution, 408 nm (Ramos 2017)", "wavelength_nm": 408, "reaction_time_min": 25, "source": "literature", "ref": "ramos2017"},
-        {"name": "AlCl3 5% in 80% ethanol, 25 min, after acid hydrolysis, 425 nm (Ramos 2017)", "wavelength_nm": 425, "reaction_time_min": 25, "source": "literature", "ref": "ramos2017"},
-        {"name": "NaNO2–AlCl3–NaOH, 510 nm (usual standard: catechin)", "wavelength_nm": 510, "source": "general_knowledge", "note": "Also responds to flavan-3-ols and o-diphenols."}
+        {
+          "name": "Direct AlCl3 (Woisky & Salatino), 420 nm",
+          "wavelength_nm": 420,
+          "source": "literature",
+          "name_es": "AlCl3 directo (Woisky y Salatino), 420 nm"
+        },
+        {
+          "name": "AlCl3 + CH3COOK (Chang et al.), 415 nm",
+          "wavelength_nm": 415,
+          "source": "literature",
+          "name_es": "AlCl3 + CH3COOK (Chang et al.), 415 nm"
+        },
+        {
+          "name": "AlCl3 5% in 80% ethanol, 25 min, direct dilution, 408 nm (Ramos 2017)",
+          "wavelength_nm": 408,
+          "reaction_time_min": 25,
+          "source": "literature",
+          "ref": "ramos2017",
+          "name_es": "AlCl3 5 % en etanol 80 %, 25 min, dilución directa, 408 nm (Ramos 2017)"
+        },
+        {
+          "name": "AlCl3 5% in 80% ethanol, 25 min, after acid hydrolysis, 425 nm (Ramos 2017)",
+          "wavelength_nm": 425,
+          "reaction_time_min": 25,
+          "source": "literature",
+          "ref": "ramos2017",
+          "name_es": "AlCl3 5 % en etanol 80 %, 25 min, tras hidrólisis ácida, 425 nm (Ramos 2017)"
+        },
+        {
+          "name": "NaNO2–AlCl3–NaOH, 510 nm (usual standard: catechin)",
+          "wavelength_nm": 510,
+          "source": "general_knowledge",
+          "note": "Also responds to flavan-3-ols and o-diphenols.",
+          "name_es": "NaNO2–AlCl3–NaOH, 510 nm (estándar habitual: catequina)",
+          "note_es": "Responde también a flavan-3-oles y o-difenoles."
+        }
       ],
-      "linear_range_examples_ug_mL": [[2, 20]],
+      "linear_range_examples_ug_mL": [
+        [
+          2,
+          20
+        ]
+      ],
       "result_unit_label": "mg {abbr}/g",
       "default_unit": "µg/mL",
       "warnings": [
@@ -95,7 +452,23 @@
         "Expressing results as quercetin vs rutin changes the result greatly; recoveries can be unacceptable depending on the standard (Shraim et al. 2021).",
         "Kaempferol and dihydrochalcones give low slopes (Matić 2017, 2021)."
       ],
-      "references": ["ramos2017", "mammen2012", "shraim2021", "matic2017", "matic2021", "alnedhary2026"]
+      "references": [
+        "ramos2017",
+        "mammen2012",
+        "shraim2021",
+        "matic2017",
+        "matic2021",
+        "alnedhary2026"
+      ],
+      "name_es": "Flavonoides totales – cloruro de aluminio",
+      "analyte_es": "Flavonas y flavonoles (complejo de Al3+ con grupos ceto y orto-dihidroxi)",
+      "principle_es": "Formación de un quelato coloreado de Al3+ con los grupos ceto/orto-dihidroxi de los flavonoides.",
+      "warnings_es": [
+        "Distintos flavonoides tienen distinto λmax y absortividad con AlCl3; el método no es universal (Mammen y Daniel 2012).",
+        "Expresar como quercetina o rutina cambia mucho el resultado; las recuperaciones pueden ser inaceptables según el estándar (Shraim et al. 2021).",
+        "Kaempferol y dihidrochalconas dan pendientes bajas (Matić 2017, 2021)."
+      ],
+      "result_unit_label_es": "mg {abbr}/g"
     },
     {
       "id": "CT_VANILLIN_HCL",
@@ -104,19 +477,50 @@
       "analyte": "Flavan-3-ols and proanthocyanidins (meta-substituted A ring)",
       "principle": "Condensation of vanillin with the meta-substituted A ring of flavan-3-ols in acid medium.",
       "standards": [
-        {"name": "Catechin", "abbr": "CE", "molar_mass": 290.27}
+        {
+          "name": "Catechin",
+          "abbr": "CE",
+          "molar_mass": 290.27,
+          "name_es": "Catequina",
+          "abbr_es": "EC"
+        }
       ],
       "variants": [
-        {"name": "Vanillin-HCl, 500 nm", "wavelength_nm": 500, "source": "general_knowledge"},
-        {"name": "Butanol-HCl (Porter), 550 nm", "wavelength_nm": 550, "source": "general_knowledge"},
-        {"name": "DMACA, 640 nm", "wavelength_nm": 640, "source": "general_knowledge"}
+        {
+          "name": "Vanillin-HCl, 500 nm",
+          "wavelength_nm": 500,
+          "source": "general_knowledge",
+          "name_es": "Vainillina-HCl, 500 nm"
+        },
+        {
+          "name": "Butanol-HCl (Porter), 550 nm",
+          "wavelength_nm": 550,
+          "source": "general_knowledge",
+          "name_es": "Butanol-HCl (Porter), 550 nm"
+        },
+        {
+          "name": "DMACA, 640 nm",
+          "wavelength_nm": 640,
+          "source": "general_knowledge",
+          "name_es": "DMACA, 640 nm"
+        }
       ],
       "result_unit_label": "mg {abbr}/g",
       "default_unit": "µg/mL",
       "warnings": [
         "No single assay quantifies 'total tannins' in every matrix; combine assays (Nastasi 2025)."
       ],
-      "references": ["nastasi2025", "turkyilmaz2014"]
+      "references": [
+        "nastasi2025",
+        "turkyilmaz2014"
+      ],
+      "name_es": "Taninos condensados – vainillina-HCl",
+      "analyte_es": "Flavan-3-oles y proantocianidinas (anillo A meta-sustituido)",
+      "principle_es": "Condensación de la vainillina con el anillo A meta-sustituido de los flavan-3-oles en medio ácido.",
+      "warnings_es": [
+        "Ningún ensayo cuantifica los 'taninos totales' en todas las matrices; combine ensayos (Nastasi 2025)."
+      ],
+      "result_unit_label_es": "mg {abbr}/g"
     },
     {
       "id": "TAC_BCG",
@@ -124,22 +528,74 @@
       "type": "curve",
       "analyte": "Total alkaloids",
       "principle": "Yellow alkaloid–BCG ion-pair complex at pH 4.7, extracted with chloroform.",
-      "conditions": {"pH": 4.7, "extraction_solvent": "Chloroform"},
+      "conditions": {
+        "pH": 4.7,
+        "extraction_solvent": "Chloroform"
+      },
       "standards": [
-        {"name": "Atropine", "abbr": "AE", "molar_mass": 289.37},
-        {"name": "Caffeine", "abbr": "CafE", "molar_mass": 194.19},
-        {"name": "Quinine", "abbr": "QnE", "molar_mass": 324.42}
+        {
+          "name": "Atropine",
+          "abbr": "AE",
+          "molar_mass": 289.37,
+          "name_es": "Atropina",
+          "abbr_es": "EA"
+        },
+        {
+          "name": "Caffeine",
+          "abbr": "CafE",
+          "molar_mass": 194.19,
+          "name_es": "Cafeína",
+          "abbr_es": "ECaf"
+        },
+        {
+          "name": "Quinine",
+          "abbr": "QnE",
+          "molar_mass": 324.42,
+          "name_es": "Quinina",
+          "abbr_es": "EQn"
+        }
       ],
       "variants": [
-        {"name": "470 nm (Shamsa et al. 2010)", "wavelength_nm": 470, "source": "general_knowledge", "ref": "shamsa2010"},
-        {"name": "415 nm (Tinospora cordifolia, 2015)", "wavelength_nm": 415, "source": "literature", "ref": "tinospora2015"}
+        {
+          "name": "470 nm (Shamsa et al. 2010)",
+          "wavelength_nm": 470,
+          "source": "general_knowledge",
+          "ref": "shamsa2010",
+          "name_es": "470 nm (Shamsa et al. 2010)"
+        },
+        {
+          "name": "415 nm (Tinospora cordifolia, 2015)",
+          "wavelength_nm": 415,
+          "source": "literature",
+          "ref": "tinospora2015",
+          "name_es": "415 nm (Tinospora cordifolia, 2015)"
+        }
       ],
-      "linear_range_examples_ug_mL": [[4, 13]],
+      "linear_range_examples_ug_mL": [
+        [
+          4,
+          13
+        ]
+      ],
       "reported_performance": "Linear 2–10 µg/mL at 415 nm; RSD < 2%; LOD 0.215, LOQ 0.652 (Tinospora cordifolia, 2015).",
       "result_unit_label": "mg {abbr}/g",
       "default_unit": "µg/mL",
       "warnings": [],
-      "references": ["shamsa2010", "prajapati2024", "tinospora2015", "iqbal2025"]
+      "references": [
+        "shamsa2010",
+        "prajapati2024",
+        "tinospora2015",
+        "iqbal2025"
+      ],
+      "name_es": "Alcaloides totales – verde de bromocresol (BCG)",
+      "analyte_es": "Alcaloides totales",
+      "principle_es": "Complejo de par iónico amarillo alcaloide–BCG a pH 4,7, extraído con cloroformo.",
+      "result_unit_label_es": "mg {abbr}/g",
+      "reported_performance_es": "Lineal 2–10 µg/mL a 415 nm; RSD < 2 %; LOD 0,215, LOQ 0,652 (Tinospora cordifolia, 2015).",
+      "conditions_es": {
+        "pH": 4.7,
+        "solvente de extracción": "Cloroformo"
+      }
     },
     {
       "id": "TSAP_VANILLIN_H2SO4",
@@ -148,14 +604,44 @@
       "analyte": "Total saponins",
       "principle": "Coloured product of saponin aglycones with vanillin in concentrated sulfuric acid.",
       "standards": [
-        {"name": "Aescin", "abbr": "AeE", "molar_mass": 1131.26},
-        {"name": "Diosgenin", "abbr": "DE", "molar_mass": 414.62},
-        {"name": "Oleanolic acid", "abbr": "OAE", "molar_mass": 456.70}
+        {
+          "name": "Aescin",
+          "abbr": "AeE",
+          "molar_mass": 1131.26,
+          "name_es": "Aescina",
+          "abbr_es": "EAe"
+        },
+        {
+          "name": "Diosgenin",
+          "abbr": "DE",
+          "molar_mass": 414.62,
+          "name_es": "Diosgenina",
+          "abbr_es": "ED"
+        },
+        {
+          "name": "Oleanolic acid",
+          "abbr": "OAE",
+          "molar_mass": 456.7,
+          "name_es": "Ácido oleanólico",
+          "abbr_es": "EAO"
+        }
       ],
       "variants": [
-        {"name": "Vanillin-H2SO4, 560 nm (usual range 540–560 nm)", "wavelength_nm": 560, "source": "literature"},
-        {"name": "p-Anisaldehyde-H2SO4 (Le Bot et al. 2022) – set λ from the reference", "wavelength_nm": null, "source": "literature", "ref": "lebot2022",
-         "note": "Similar absorptivity for triterpenoid and steroidal saponins."}
+        {
+          "name": "Vanillin-H2SO4, 560 nm (usual range 540–560 nm)",
+          "wavelength_nm": 560,
+          "source": "literature",
+          "name_es": "Vainillina-H2SO4, 560 nm (rango habitual 540–560 nm)"
+        },
+        {
+          "name": "p-Anisaldehyde-H2SO4 (Le Bot et al. 2022) – set λ from the reference",
+          "wavelength_nm": null,
+          "source": "literature",
+          "ref": "lebot2022",
+          "note": "Similar absorptivity for triterpenoid and steroidal saponins.",
+          "name_es": "p-Anisaldehído-H2SO4 (Le Bot et al. 2022) – tome λ de la referencia",
+          "note_es": "Absortividad similar para saponinas triterpénicas y esteroidales."
+        }
       ],
       "result_unit_label": "mg {abbr}/g",
       "default_unit": "µg/mL",
@@ -163,7 +649,19 @@
         "Acetone, methanol and n-butanol darken the reaction even without saponins; evaporate the solvent before the reaction (Le et al. 2018).",
         "The curve changes with the solvent of the standard."
       ],
-      "references": ["le2018", "lebot2022", "basnet2026"]
+      "references": [
+        "le2018",
+        "lebot2022",
+        "basnet2026"
+      ],
+      "name_es": "Saponinas totales – vainillina-ácido sulfúrico",
+      "analyte_es": "Saponinas totales",
+      "principle_es": "Producto coloreado de las agliconas de saponinas con vainillina en ácido sulfúrico concentrado.",
+      "warnings_es": [
+        "Acetona, metanol y n-butanol oscurecen la reacción incluso sin saponinas; evapore el solvente antes de reaccionar (Le et al. 2018).",
+        "La curva cambia según el solvente del estándar."
+      ],
+      "result_unit_label_es": "mg {abbr}/g"
     },
     {
       "id": "TMA_PH_DIFF",
@@ -171,40 +669,160 @@
       "type": "ph_differential",
       "analyte": "Total monomeric anthocyanins",
       "principle": "Anthocyanins are coloured (flavylium cation) at pH 1.0 and almost colourless (hemiketal) at pH 4.5. No calibration curve: uses a known ε.",
-      "buffers": {"pH_1.0": "KCl 0.025 M", "pH_4.5": "Sodium acetate 0.4 M", "source": "general_knowledge (AOAC 2005.02)"},
-      "wavelengths_nm": {"vis_max": 520, "haze_correction": 700},
+      "buffers": {
+        "pH_1.0": "KCl 0.025 M",
+        "pH_4.5": "Sodium acetate 0.4 M",
+        "source": "general_knowledge (AOAC 2005.02)"
+      },
+      "wavelengths_nm": {
+        "vis_max": 520,
+        "haze_correction": 700
+      },
       "equations": {
         "A": "A = (A520 − A700)pH1.0 − (A520 − A700)pH4.5",
         "concentration_mg_L": "C = A · MW · DF · 1000 / (ε · l)"
       },
-      "constants": {"pigment": "Cyanidin-3-glucoside", "abbr": "C3GE", "MW_g_mol": 449.2, "epsilon_L_mol_cm": 26900, "source": "general_knowledge (AOAC 2005.02)"},
+      "constants": {
+        "pigment": "Cyanidin-3-glucoside",
+        "abbr": "C3GE",
+        "MW_g_mol": 449.2,
+        "epsilon_L_mol_cm": 26900,
+        "source": "general_knowledge (AOAC 2005.02)",
+        "pigment_es": "Cianidina-3-glucósido"
+      },
       "result_unit_label": "mg C3GE/L or mg C3GE/g",
       "reported_performance": "RSDr 1.06–4.16%; RSDR 2.69–10.12% (collaborative study, Lee et al. 2005).",
       "warnings": [],
-      "references": ["lee2005"]
+      "references": [
+        "lee2005"
+      ],
+      "name_es": "Antocianinas monoméricas totales – pH diferencial (AOAC 2005.02)",
+      "analyte_es": "Antocianinas monoméricas totales",
+      "principle_es": "Las antocianinas son coloreadas (catión flavilio) a pH 1,0 y casi incoloras (hemicetal) a pH 4,5. Sin curva de calibración: usa un ε conocido.",
+      "result_unit_label_es": "mg C3GE/L o mg C3GE/g",
+      "reported_performance_es": "RSDr 1,06–4,16 %; RSDR 2,69–10,12 % (estudio colaborativo, Lee et al. 2005)."
     }
   ],
-
   "references": {
-    "matic2017": {"citation": "Matić P. et al. (2017). Validation of Spectrophotometric Methods for the Determination of Total Polyphenol and Total Flavonoid Content. J AOAC Int.", "url": "https://consensus.app/papers/details/w:fc679d74-2bda-4667-aedd-d2f185e42683/"},
-    "matic2021": {"citation": "Matić P. et al. (2021). Spectrophotometric Folin-Ciocalteu and Aluminium Chloride Method Validation... Croat J Food Sci Technol.", "url": "https://consensus.app/papers/details/w:c1756544-f268-41e9-8118-ace821a784c8/"},
-    "alnedhary2026": {"citation": "Alnedhary A.A. et al. (2026). Standardization and Validation of Optimized Spectrophotometric Assays for Total Antioxidant, Polyphenol, and Flavonoid Determination.", "url": "https://consensus.app/papers/details/w:1f90d727-8f74-4dc2-854f-7e8ef54ca5de/"},
-    "ruizvasquez2026": {"citation": "Ruiz-Vásquez L. et al. (2026). Optimized Folin–Ciocalteu Method... Peruvian Amazon. AppliedChem.", "url": "https://consensus.app/papers/details/w:b96ae7ea-01be-436c-bb6f-53425640f44c/"},
-    "nastasi2025": {"citation": "Nastasi J.R. (2025). Colourimetric Assays for Assessing Polyphenolic Phytonutrients... Critical Evaluation. Nutraceuticals.", "url": "https://consensus.app/papers/details/w:5dc3aad3-7bde-4f6d-ae2d-a827980d3263/"},
-    "shraim2021": {"citation": "Shraim A.M. et al. (2021). Determination of total flavonoid content by aluminum chloride assay: A critical evaluation. LWT.", "url": "https://consensus.app/papers/details/w:b3e72518-9b4a-44ac-93a2-6b687b3ca7e7/"},
-    "blainski2013": {"citation": "Blainski A. et al. (2013). Application and Analysis of the Folin Ciocalteu Method... Limonium brasiliense. Molecules.", "url": "https://consensus.app/papers/details/w:d553a30f-c2df-4287-8007-cf1851d79f5a/"},
-    "stratil2006": {"citation": "Stratil P., Klejdus B., Kubán V. (2006). J Agric Food Chem 54(3):607-16.", "doi": "10.1021/jf052334j"},
-    "chen2015": {"citation": "Chen L.Y., Cheng C.W., Liang J.Y. (2015). Effect of esterification condensation on the Folin-Ciocalteu method. Food Chem 170:10-5.", "doi": "10.1016/j.foodchem.2014.08.038"},
-    "lee2005": {"citation": "Lee J., Durst R.W., Wrolstad R.E. (2005). Total monomeric anthocyanin by the pH differential method: collaborative study. J AOAC Int 88(5):1269-78.", "pmid": "16385975"},
-    "ramos2017": {"citation": "Ramos R.T.M. et al. (2017). Spectrophotometric Quantification of Flavonoids... Eugenia uniflora. Pharmacognosy Res 9(3):253-260.", "doi": "10.4103/pr.pr_143_16"},
-    "mammen2012": {"citation": "Mammen D., Daniel M. (2012). A critical evaluation on the reliability of two aluminum chloride chelation methods. Food Chem 135(3):1365-8.", "doi": "10.1016/j.foodchem.2012.05.109"},
-    "turkyilmaz2014": {"citation": "Türkyılmaz M., Ozkan M. (2014). Effects of condensed tannins on anthocyanins and colour of pomegranate juices. Food Chem 164:324-31.", "doi": "10.1016/j.foodchem.2014.05.048"},
-    "iqbal2025": {"citation": "Iqbal J. et al. (2025). Berberis lycium: A Natural Source of Antioxidants and Bioactive Compounds. APJCP 26(4):1199-1207.", "doi": "10.31557/APJCP.2025.26.4.1199"},
-    "shamsa2010": {"citation": "Shamsa F. et al. (2010). Spectrophotometric determination of total alkaloids in some Iranian medicinal plants. J Appl Hortic.", "url": "https://consensus.app/papers/details/w:21ca8220-c6ff-484e-8331-ca769480c201/"},
-    "prajapati2024": {"citation": "Prajapati D. et al. (2024). Spectrophotometric method for the determination of total alkaloids in selected plant parts. J Pharmacogn Phytochem.", "url": "https://consensus.app/papers/details/w:2eff3cc6-66fb-47ea-96f2-f668eb313340/"},
-    "tinospora2015": {"citation": "(2015). Spectrophotometric method for the estimation of total alkaloids in Tinospora cordifolia and its herbal formulations.", "url": "https://consensus.app/papers/details/w:9560f279-aaba-4325-8998-e959c41e8f6b/"},
-    "le2018": {"citation": "Le A.V. et al. (2018). Improving the Vanillin-Sulphuric Acid Method for Quantifying Total Saponins. Technologies.", "url": "https://consensus.app/papers/details/w:e6608ad8-2545-4916-9e90-5ba591155a0d/"},
-    "lebot2022": {"citation": "Le Bot M. et al. (2022). Colorimetric method for total triterpenoid and steroidal saponins. Food Chem.", "url": "https://consensus.app/papers/details/w:71a60f62-e660-4e2f-b6d0-d7a486b6d5d1/"},
-    "basnet2026": {"citation": "Basnet P. et al. (2026). Spectrophotometric Method for Quantifying Total Saponins in Mature Soybean Seeds. J Food Process Preserv.", "url": "https://consensus.app/papers/details/w:9d8bba43-f2e4-4dcd-9a82-b013c50182d4/"}
+    "matic2017": {
+      "citation": "Matić P. et al. (2017). Validation of Spectrophotometric Methods for the Determination of Total Polyphenol and Total Flavonoid Content. J AOAC Int.",
+      "url": "https://consensus.app/papers/details/w:fc679d74-2bda-4667-aedd-d2f185e42683/"
+    },
+    "matic2021": {
+      "citation": "Matić P. et al. (2021). Spectrophotometric Folin-Ciocalteu and Aluminium Chloride Method Validation... Croat J Food Sci Technol.",
+      "url": "https://consensus.app/papers/details/w:c1756544-f268-41e9-8118-ace821a784c8/"
+    },
+    "alnedhary2026": {
+      "citation": "Alnedhary A.A. et al. (2026). Standardization and Validation of Optimized Spectrophotometric Assays for Total Antioxidant, Polyphenol, and Flavonoid Determination.",
+      "url": "https://consensus.app/papers/details/w:1f90d727-8f74-4dc2-854f-7e8ef54ca5de/"
+    },
+    "ruizvasquez2026": {
+      "citation": "Ruiz-Vásquez L. et al. (2026). Optimized Folin–Ciocalteu Method... Peruvian Amazon. AppliedChem.",
+      "url": "https://consensus.app/papers/details/w:b96ae7ea-01be-436c-bb6f-53425640f44c/"
+    },
+    "nastasi2025": {
+      "citation": "Nastasi J.R. (2025). Colourimetric Assays for Assessing Polyphenolic Phytonutrients... Critical Evaluation. Nutraceuticals.",
+      "url": "https://consensus.app/papers/details/w:5dc3aad3-7bde-4f6d-ae2d-a827980d3263/"
+    },
+    "shraim2021": {
+      "citation": "Shraim A.M. et al. (2021). Determination of total flavonoid content by aluminum chloride assay: A critical evaluation. LWT.",
+      "url": "https://consensus.app/papers/details/w:b3e72518-9b4a-44ac-93a2-6b687b3ca7e7/"
+    },
+    "blainski2013": {
+      "citation": "Blainski A. et al. (2013). Application and Analysis of the Folin Ciocalteu Method... Limonium brasiliense. Molecules.",
+      "url": "https://consensus.app/papers/details/w:d553a30f-c2df-4287-8007-cf1851d79f5a/"
+    },
+    "stratil2006": {
+      "citation": "Stratil P., Klejdus B., Kubán V. (2006). J Agric Food Chem 54(3):607-16.",
+      "doi": "10.1021/jf052334j"
+    },
+    "chen2015": {
+      "citation": "Chen L.Y., Cheng C.W., Liang J.Y. (2015). Effect of esterification condensation on the Folin-Ciocalteu method. Food Chem 170:10-5.",
+      "doi": "10.1016/j.foodchem.2014.08.038"
+    },
+    "lee2005": {
+      "citation": "Lee J., Durst R.W., Wrolstad R.E. (2005). Total monomeric anthocyanin by the pH differential method: collaborative study. J AOAC Int 88(5):1269-78.",
+      "pmid": "16385975"
+    },
+    "ramos2017": {
+      "citation": "Ramos R.T.M. et al. (2017). Spectrophotometric Quantification of Flavonoids... Eugenia uniflora. Pharmacognosy Res 9(3):253-260.",
+      "doi": "10.4103/pr.pr_143_16"
+    },
+    "mammen2012": {
+      "citation": "Mammen D., Daniel M. (2012). A critical evaluation on the reliability of two aluminum chloride chelation methods. Food Chem 135(3):1365-8.",
+      "doi": "10.1016/j.foodchem.2012.05.109"
+    },
+    "turkyilmaz2014": {
+      "citation": "Türkyılmaz M., Ozkan M. (2014). Effects of condensed tannins on anthocyanins and colour of pomegranate juices. Food Chem 164:324-31.",
+      "doi": "10.1016/j.foodchem.2014.05.048"
+    },
+    "iqbal2025": {
+      "citation": "Iqbal J. et al. (2025). Berberis lycium: A Natural Source of Antioxidants and Bioactive Compounds. APJCP 26(4):1199-1207.",
+      "doi": "10.31557/APJCP.2025.26.4.1199"
+    },
+    "shamsa2010": {
+      "citation": "Shamsa F. et al. (2010). Spectrophotometric determination of total alkaloids in some Iranian medicinal plants. J Appl Hortic.",
+      "url": "https://consensus.app/papers/details/w:21ca8220-c6ff-484e-8331-ca769480c201/"
+    },
+    "prajapati2024": {
+      "citation": "Prajapati D. et al. (2024). Spectrophotometric method for the determination of total alkaloids in selected plant parts. J Pharmacogn Phytochem.",
+      "url": "https://consensus.app/papers/details/w:2eff3cc6-66fb-47ea-96f2-f668eb313340/"
+    },
+    "tinospora2015": {
+      "citation": "(2015). Spectrophotometric method for the estimation of total alkaloids in Tinospora cordifolia and its herbal formulations.",
+      "url": "https://consensus.app/papers/details/w:9560f279-aaba-4325-8998-e959c41e8f6b/"
+    },
+    "le2018": {
+      "citation": "Le A.V. et al. (2018). Improving the Vanillin-Sulphuric Acid Method for Quantifying Total Saponins. Technologies.",
+      "url": "https://consensus.app/papers/details/w:e6608ad8-2545-4916-9e90-5ba591155a0d/"
+    },
+    "lebot2022": {
+      "citation": "Le Bot M. et al. (2022). Colorimetric method for total triterpenoid and steroidal saponins. Food Chem.",
+      "url": "https://consensus.app/papers/details/w:71a60f62-e660-4e2f-b6d0-d7a486b6d5d1/"
+    },
+    "basnet2026": {
+      "citation": "Basnet P. et al. (2026). Spectrophotometric Method for Quantifying Total Saponins in Mature Soybean Seeds. J Food Process Preserv.",
+      "url": "https://consensus.app/papers/details/w:9d8bba43-f2e4-4dcd-9a82-b013c50182d4/"
+    },
+    "tovar2013": {
+      "citation": "Tovar, J. (2013). Determinación de la actividad antioxidante por DPPH y ABTS de 30 plantas recolectadas en la ecoregión cafetera [Undergraduate thesis, Química Industrial]. Universidad Tecnológica de Pereira.",
+      "url": "https://repositorio.utp.edu.co/items/32d48e6c-0676-44c3-bde6-c827ea08f7dd"
+    },
+    "recuero2018": {
+      "citation": "Recuero Pacheco, H. M. (2018). Evaluación de la actividad antioxidante y cuantificación de los compuestos fenólicos, flavonoides totales presentes en los extractos metanólicos de la corteza y las hojas secas de Protium aracouchini (Aubl.) Marchand (ANIME) [Undergraduate thesis, Universidad de Sucre]. Sections 5.6.3 and 5.6.4, p. 24.",
+      "url": "https://repositorio.unisucre.edu.co/entities/publication/775f001f-917c-41cb-94b7-b04e0397732a"
+    },
+    "gomes2021": {
+      "citation": "Gomes, C. L., Silva, C. C. A. R., De Melo, C. G., Ferreira, M., Soares, L., Da Silva, R. M. F., Rolim, L., & Rolim, P. (2021). Development of an analytical method for determination of polyphenols and total tannins from leaves of Syzygium cumini L. Skeels. Anais da Academia Brasileira de Ciências, 93(2), e20190373.",
+      "doi": "10.1590/0001-3765202120190373"
+    },
+    "valentin2024": {
+      "citation": "Valentin, S. M. et al. (2024). Phytochemical analysis and quantification of flavonoid content of ethyl acetate fraction from 'Alugbati' (Basella rubra L.) leaves. GSC Biological and Pharmaceutical Sciences, 29(2), 374–380.",
+      "doi": "10.30574/gscbps.2024.29.2.0441"
+    }
+  },
+  "lab_protocol": {
+    "equipment": "UV-Vis spectrophotometer Spectroquant Pharo 300",
+    "equipment_es": "Espectrofotómetro UV-Vis Spectroquant Pharo 300",
+    "institution": "Natural Products Laboratory, Universidad de Sucre",
+    "institution_es": "Laboratorio de Productos Naturales, Universidad de Sucre",
+    "fraction_selection": [
+      {
+        "matrix": "Apis mellifera honey (V2.2)",
+        "matrix_es": "Miel de Apis mellifera (V2.2)",
+        "criterion": "Quantification is carried out on the ethyl acetate fraction, which concentrates the phenolic compounds. Petroleum ether, dichloromethane and n-butanol fractions are used for phytochemical screening and the UV-Vis scan.",
+        "criterion_es": "La cuantificación se realiza en la fracción de acetato de etilo, que concentra los compuestos fenólicos. Las fracciones de éter de petróleo, diclorometano y n-butanol se emplean en el tamizaje fitoquímico y en el barrido UV-Vis.",
+        "references": []
+      },
+      {
+        "matrix": "Fresh flavedo of Citrus paradisi (V3.1)",
+        "matrix_es": "Flavedo fresco de Citrus paradisi (V3.1)",
+        "criterion": "Quantification is carried out on the fractions of the hydroalcoholic extract that are positive in the specific phytochemical screening tests, so that only groups whose presence has been qualitatively confirmed are quantified.",
+        "criterion_es": "La cuantificación se realiza en las fracciones del extracto hidroalcohólico que resulten positivas en las pruebas específicas del tamizaje fitoquímico, de modo que solo se cuantifiquen los grupos cuya presencia se haya confirmado cualitativamente.",
+        "references": [
+          "valentin2024"
+        ]
+      }
+    ]
   }
 }
