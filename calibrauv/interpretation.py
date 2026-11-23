@@ -15,7 +15,7 @@ def _fmt_p(p):
     return "< 0.0001" if p < 1e-4 else f"{p:.4f}"
 
 
-def evaluate(res: dict) -> list[dict]:
+def evaluate(res: dict, r2_min: float = 0.99, r2_rec: float = 0.995) -> list[dict]:
     """Return a list of {test, value, status, message}. status: ok|warn|bad|info."""
     out = []
     d = res["diagnostics"]
@@ -24,9 +24,9 @@ def evaluate(res: dict) -> list[dict]:
     r2 = res["r_squared"]
     out.append({
         "test": "Coefficient of determination R²", "value": f"{r2:.5f}",
-        "status": "ok" if r2 >= 0.995 else ("warn" if r2 >= 0.99 else "bad"),
-        "message": ("Excellent linearity." if r2 >= 0.995 else
-                    "Acceptable linearity, check the residuals." if r2 >= 0.99 else
+        "status": "ok" if r2 >= r2_rec else ("warn" if r2 >= r2_min else "bad"),
+        "message": (f"Excellent linearity (≥ {r2_rec})." if r2 >= r2_rec else
+                    f"Acceptable linearity (≥ {r2_min}), check the residuals." if r2 >= r2_min else
                     "Poor linearity: check standards, range or deviations from Beer-Lambert.")
                    + " A high R² alone does NOT prove linearity: look at the residuals."
                    + (" (With the intercept forced to 0, R² is uncentered and tends to be inflated.)"
@@ -104,9 +104,12 @@ def evaluate(res: dict) -> list[dict]:
 def sample_warnings(res: dict) -> list[str]:
     msgs = []
     for u in res["unknowns"]:
-        if u["extrapolated"]:
-            msgs.append(f"'{u['sample']}' is outside the calibrated range (extrapolation): "
-                        "dilute it or extend the curve.")
+        if u["x0"] > res["x_max"]:
+            msgs.append(f"'{u['sample']}' is above the highest standard (extrapolation): "
+                        "dilute it and multiply the result by the dilution factor.")
+        elif u["extrapolated"]:
+            msgs.append(f"'{u['sample']}' is below the lowest standard (extrapolation): "
+                        "concentrate it or extend the curve downwards.")
         elif u["below_lod"]:
             msgs.append(f"'{u['sample']}' is below the LOD: report as < LOD.")
         elif u["below_loq"]:

@@ -13,11 +13,12 @@ UNITS = {
     "mol/L": 1.0,
     "mmol/L": 1e-3,
     "µmol/L": 1e-6,
-    "mg/L (ppm)": None,   # = µg/mL
+    "mg/L (ppm)": None,
+    "µg/mL": None,        # = mg/L
     "µg/L (ppb)": None,
     "g/L": None,
 }
-_MASS_TO_G = {"mg/L (ppm)": 1e-3, "µg/L (ppb)": 1e-6, "g/L": 1.0}
+_MASS_TO_G = {"mg/L (ppm)": 1e-3, "µg/mL": 1e-3, "µg/L (ppb)": 1e-6, "g/L": 1.0}
 
 
 def available_engines() -> dict[str, bool]:

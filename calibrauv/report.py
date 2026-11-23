@@ -52,8 +52,10 @@ def summary_table(res, unit, molar_eps=None) -> pd.DataFrame:
         ("Regression F", _g(res["f_stat"])),
         ("p (F)", _g(res["f_p"], 4)),
         ("Slope RSD (%)", _g(res["slope_rsd_pct"], 4)),
-        (f"LOD = 3.3·s/b ({unit})", _g(res["lod"], 5)),
-        (f"LOQ = 10·s/b ({unit})", _g(res["loq"], 5)),
+        (f"LOD = 3.3·σ/b ({unit})", _g(res["lod"], 5)),
+        (f"LOQ = 10·σ/b ({unit})", _g(res["loq"], 5)),
+        ("σ used for LOD/LOQ", {"syx": "s(y/x)", "sa": "s(a), SD of intercept",
+                                "blanks": "SD of blanks"}.get(res.get("lod_basis", "syx"))),
         (f"Calibrated range ({unit})", f"{_g(res['x_min'], 5)} – {_g(res['x_max'], 5)}"),
         (f"Absorptivity a = b/l ({unit})⁻¹·cm⁻¹", _g(res["absorptivity"], 6)),
     ]
@@ -97,7 +99,9 @@ def samples_table(res, unit) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def html_report(res, meta: dict, fig_plotly=None, fig_diag=None, molar_eps=None) -> str:
+def html_report(res, meta: dict, fig_plotly=None, fig_diag=None, molar_eps=None,
+                extra_sections=None, r2_min: float = 0.99, r2_rec: float = 0.995) -> str:
+    """extra_sections: list of (title, html) inserted after the samples table."""
     unit = meta.get("unit", "")
     css = """body{font-family:system-ui,Segoe UI,Roboto,sans-serif;max-width:980px;margin:2rem auto;
     padding:0 1rem;color:#1d2330}h1{color:#0072B2}table{border-collapse:collapse;margin:.6rem 0 1.4rem;
@@ -110,7 +114,7 @@ def html_report(res, meta: dict, fig_plotly=None, fig_diag=None, molar_eps=None)
 
     ev = "".join(f"<tr><td>{html.escape(e['test'])}</td><td>{html.escape(e['value'])}</td>"
                  f"<td class='{e['status']}' style='text-align:left'>{html.escape(e['message'])}</td></tr>"
-                 for e in evaluate(res))
+                 for e in evaluate(res, r2_min, r2_rec))
     mt = "".join(f"<li><b>{html.escape(k)}:</b> {html.escape(str(v))}</li>" for k, v in meta.items() if v)
     figs = ""
     if fig_plotly is not None:
@@ -128,6 +132,27 @@ def html_report(res, meta: dict, fig_plotly=None, fig_diag=None, molar_eps=None)
 <h2>Regression ANOVA</h2>{t(anova_table(res))}
 <h2>Assumption checks</h2><table><tr><th>Test</th><th>Value</th><th>Interpretation</th></tr>{ev}</table>
 {"<h2>Samples</h2>" + t(st) if not st.empty else ""}
+{"".join(f"<h2>{html.escape(ti)}</h2>{body}" for ti, body in (extra_sections or []))}
 <h2>Plots</h2>{figs}
 <h2>Data and residuals</h2>{t(points_table(res))}
 <p class="ai">{AI_NOTICE}</p></body></html>"""
+
+
+def simple_html_report(title: str, meta: dict, sections: list[tuple[str, str]]) -> str:
+    """Generic report (used by methods without a calibration curve, e.g. pH differential)."""
+    css = """body{font-family:system-ui,Segoe UI,Roboto,sans-serif;max-width:980px;margin:2rem auto;
+    padding:0 1rem;color:#1d2330}h1{color:#0072B2}table{border-collapse:collapse;margin:.6rem 0 1.4rem;
+    font-size:.9rem}td,th{border:1px solid #ccd;padding:.3rem .6rem;text-align:right}th{background:#eef3f8}
+    td:first-child,th:first-child{text-align:left}
+    .ai{background:#f5f7fa;border-left:4px solid #0072B2;padding:.7rem 1rem;font-size:.85rem}"""
+    mt = "".join(f"<li><b>{html.escape(k)}:</b> {html.escape(str(v))}</li>" for k, v in meta.items() if v)
+    body = "".join(f"<h2>{html.escape(t)}</h2>{b}" for t, b in sections)
+    return f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
+<title>CalibraUV report</title><style>{css}</style></head><body>
+<h1>{html.escape(title)}</h1>
+<p>Generated on {dt.datetime.now():%Y-%m-%d %H:%M} with CalibraUV v{__version__}</p>
+<ul>{mt}</ul>{body}<p class="ai">{AI_NOTICE}</p></body></html>"""
+
+
+def df_html(df: pd.DataFrame) -> str:
+    return df.to_html(index=False, float_format=lambda v: f"{v:.6g}", na_rep="", border=0)

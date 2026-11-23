@@ -12,8 +12,9 @@ Thank you for your interest! A few guidelines:
 4. **Tests:** `python -m pytest -v` must pass (it includes the R vs Python comparison).
 5. **AI use:** allowed; declare it in the pull request and make sure you understand
    every line. See [RESPONSIBLE_AI_POLICY.md](RESPONSIBLE_AI_POLICY.md).
-6. **Language:** the interface and documentation are in English.
+6. **New methods:** add them to `calibrauv/methods.json` (see
+   [docs/METHODS.md](docs/METHODS.md)), with references and the `source` of every value.
+7. **Language:** the interface and documentation are in English.
 
-Open ideas: weighted regression (1/x, 1/x²), Mandel's linearity test, standard
-addition, LOD from blanks, direct import of spectrophotometer files, and
+Open ideas: weighted regression (1/x, 1/x²), Mandel's linearity test, direct import of spectrophotometer files, and
 translations (e.g. Spanish).

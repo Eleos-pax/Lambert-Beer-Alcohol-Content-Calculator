@@ -210,3 +210,24 @@ def altair_residuals(res, xlab):
     rules = alt.Chart(pd.DataFrame({"y": [-2, 0, 2]})).mark_rule(strokeDash=[4, 4], color=RED).encode(
         y=alt.Y("y:Q"))
     return (base + rules).properties(title="Standardized residuals", height=300)
+
+
+def plotly_standard_addition(res_add, sa, xlab, template="plotly_white"):
+    """Standard addition line extrapolated to the x-intercept (−C_sample)."""
+    pt = _df_pts(res_add)
+    a, b = sa["intercept"], sa["slope"]
+    x0 = -sa["C"]
+    gx = np.linspace(min(x0, 0) * 1.1, max(pt.x) * 1.05, 50)
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=gx, y=a + b * gx, mode="lines", line=dict(color=BLUE, dash="dash"),
+                             name=f"A = {b:.5f}·C_added + {a:.5f}"))
+    fig.add_trace(go.Scatter(x=pt.x, y=pt.y, mode="markers", marker=dict(color=BLUE, size=9),
+                             name="Spiked aliquots"))
+    fig.add_trace(go.Scatter(x=[x0], y=[0], mode="markers", marker=dict(color=ORANGE, size=13, symbol="diamond"),
+                             error_x=dict(type="data", array=[sa["ci_high"] - sa["C"]], color=ORANGE),
+                             name=f"x-intercept → C = {sa['C']:.4g}"))
+    fig.add_hline(y=0, line_color=GREY)
+    fig.add_vline(x=0, line_color=GREY)
+    fig.update_layout(template=template, title="Standard addition", xaxis_title=xlab,
+                      yaxis_title="Absorbance", legend=dict(orientation="h", y=-0.2), height=480)
+    return fig

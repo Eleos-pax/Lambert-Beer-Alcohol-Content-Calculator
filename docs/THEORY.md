@@ -105,6 +105,72 @@ The app flags samples that are **extrapolated** (outside the calibrated range),
 **< LOD** and **< LOQ**. If you diluted the sample, multiply the result and its
 interval by the dilution factor.
 
+## 8. Blank correction
+
+$$A_{corr} = A - A_{reagent\ blank} - A_{sample\ blank}$$
+
+The reagent blank is subtracted from standards and samples (leave it at 0 if the
+blank was used to zero the instrument). The sample blank (extract with all reagents
+except the chromogenic one) corrects for coloured extracts. The regression is fitted
+on corrected absorbances.
+
+## 9. Choice of σ for LOD/LOQ
+
+ICH Q2 allows σ to be: the residual standard deviation s_{y/x} (default), the standard
+deviation of the intercept s_a, or the standard deviation of ≥ 10 blank readings.
+In all cases LOD = 3.3σ/b and LOQ = 10σ/b.
+
+## 10. Content in the sample
+
+$$\text{Content} = \frac{C \cdot V_{extract} \cdot DF}{m_{sample}}$$
+
+with C from the curve, V the extract volume, DF the dilution factor applied before
+reading and m the sample mass (state dry weight, fresh weight or extract). With C in
+µg/mL (= mg/L) and V in mL: Content (mg/g) = C · (V/1000) · DF / m. With molar units the
+result is given in µmol/g. Each replicate is computed separately and reported as
+mean ± SD and RSD%. When V, DF and m are identical for all replicates, the calibration
+confidence interval of C is scaled by the same factor.
+
+## 11. Standard addition
+
+Equal aliquots of sample are spiked with increasing amounts of standard. Regressing
+A on the added concentration gives A = a + b·C_added; the analyte concentration in the
+measured solution is the absolute value of the x-intercept:
+
+$$C = \frac{a}{b},\qquad s_{C}=\frac{s_{y/x}}{b}\sqrt{\frac1n+\frac{\bar y^2}{b^2 S_{xx}}}$$
+
+(Miller & Miller). Specificity / matrix effect: the slope of the addition line is
+compared with the slope of the external curve; a difference below 3% indicates no
+significant matrix effect (criterion used by Ruiz-Vásquez et al. 2026).
+
+## 12. Validation (ICH Q2)
+
+- **Precision:** RSD% = 100·SD/mean of concentrations obtained from the curve.
+  Repeatability: n ≥ 6 at 100% or 9 determinations at 3 levels; intermediate precision:
+  another day, analyst or instrument (`series` column). Criteria: RSD ≤ 2%
+  (pharmaceutical) or ≤ 5% (complex plant matrices).
+- **Accuracy (recovery):**
+
+$$\text{Recovery}\,\% = 100\cdot\frac{C_{spiked}-C_{unspiked}}{C_{added}}$$
+
+  Criteria: 80–120% (AOAC, complex matrices, cited by Ruiz-Vásquez et al. 2026) or
+  98–102% (pharmaceutical).
+- **Robustness:** vary reaction time, reagent concentration, temperature and λ (± 2 nm).
+
+## 13. pH differential method (AOAC 2005.02)
+
+No calibration curve; a known molar absorptivity is used:
+
+$$A = (A_{520}-A_{700})_{pH\,1.0} - (A_{520}-A_{700})_{pH\,4.5}$$
+
+$$C\ (\text{mg/L}) = \frac{A\cdot MW\cdot DF\cdot 1000}{\varepsilon\cdot l}$$
+
+Defaults for cyanidin-3-glucoside: MW = 449.2 g/mol, ε = 26 900 L·mol⁻¹·cm⁻¹
+(general reference values from AOAC 2005.02 — verify). Reported performance:
+RSDr 1.06–4.16%, RSDR 2.69–10.12% (Lee, Durst & Wrolstad 2005).
+
+Method-specific references are listed in [METHODS.md](METHODS.md).
+
 ## References
 
 - Miller, J. N., & Miller, J. C. (2018). *Statistics and Chemometrics for Analytical Chemistry* (7th ed.). Pearson.
@@ -114,4 +180,6 @@ interval by the dilution factor.
 - Eurachem (2014). *The Fitness for Purpose of Analytical Methods* (2nd ed.).
 - Anscombe, F. J. (1973). Graphs in statistical analysis. *The American Statistician*, 27(1), 17–21.
 - Koenker, R. (1981). A note on studentizing a test for heteroscedasticity. *Journal of Econometrics*, 17(1), 107–112.
+- Lee J., Durst R.W., Wrolstad R.E. (2005). Total monomeric anthocyanin pigment content by the pH differential method: collaborative study. *J AOAC Int*, 88(5), 1269–1278.
+- Ruiz-Vásquez L. et al. (2026). Optimized Folin–Ciocalteu method… *AppliedChem*.
 - R Core Team. *R: A Language and Environment for Statistical Computing*. R Foundation for Statistical Computing.

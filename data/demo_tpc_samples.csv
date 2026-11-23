@@ -1,0 +1,10 @@
+sample,absorbance,sample_blank,extract_volume_mL,dilution_factor,mass_g
+Leaf_extract,0.4977,0.0,25,10,0.5012
+Leaf_extract,0.4927,0.0,25,10,0.5012
+Leaf_extract,0.4963,0.0,25,10,0.5012
+Fruit_peel,0.3045,0.0,25,10,0.4987
+Fruit_peel,0.3009,0.0,25,10,0.4987
+Fruit_peel,0.3013,0.0,25,10,0.4987
+Coloured_flower,0.6714,0.021,25,10,0.504
+Coloured_flower,0.6761,0.021,25,10,0.504
+Coloured_flower,0.6659,0.021,25,10,0.504

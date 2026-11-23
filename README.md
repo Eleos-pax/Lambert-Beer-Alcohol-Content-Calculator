@@ -33,9 +33,20 @@ methods, proteins, etc.), with full statistics computed in **R** and plots made 
 | **Plots** | Curve with confidence and prediction bands, LOD/LOQ and samples; diagnostics panel (residuals, Q-Q, Cook) |
 | **Libraries** | Plotly (interactive), Matplotlib + Seaborn, plain Matplotlib, Altair — 300 dpi PNG for publications |
 | **Export** | HTML report with interpretation, JSON results and residuals CSV |
-| **Input** | Editable table, CSV (comma, or semicolon with decimal comma) and Excel |
+| **Method presets** | Folin-Ciocalteu (total phenolics), AlCl₃ (flavonoids), vanillin-HCl (condensed tannins), bromocresol green (alkaloids), vanillin-H₂SO₄ (saponins), pH differential (anthocyanins, AOAC 2005.02) — each with its variants, standards, warnings and references ([docs/METHODS.md](docs/METHODS.md)) |
+| **Blank correction** | Reagent blank and per-sample blank (coloured extracts) |
+| **Content** | Content = C · V · DF / m per replicate, mean ± SD and RSD% (e.g. mg GAE/g DW) |
+| **LOD/LOQ basis** | σ = s(y/x), SD of the intercept, or SD of ≥ 10 blanks (ICH Q2) |
+| **Curve acceptance** | Rejected if R² < threshold (default 0.99) or significant lack of fit; design check (≥ 5 levels × 3 replicates) |
+| **Standard addition** | x-intercept with uncertainty and confidence interval; slope parallelism vs external curve (< 3%) |
+| **Validation (ICH Q2)** | Checklist, repeatability / intermediate precision (RSD ≤ 2% or 5%), recovery (80–120% or 98–102%) |
+| **Input** | Editable tables, CSV (comma, or semicolon with decimal comma) and Excel |
 
-All formulas are explained in [docs/THEORY.md](docs/THEORY.md).
+All formulas are explained in [docs/THEORY.md](docs/THEORY.md); the method presets,
+their sources and how to add new ones are in [docs/METHODS.md](docs/METHODS.md).
+
+> Values in the presets are labelled as **literature** (from the cited references) or
+> **general analytical practice** (to be verified against your laboratory protocol).
 
 ## Architecture
 
@@ -112,17 +123,20 @@ python -m venv .venv
 
 ## Usage
 
+0. **Method:** choose a preset (or *Generic*) in the sidebar, with its variant and standard.
 1. **Data:** type or paste your standards (concentration, absorbance), or upload a
    CSV/Excel file. Enter replicates as repeated rows with the same concentration.
-2. **Samples (optional):** columns `sample` and `absorbance`; one row per replicate.
+2. **Samples (optional):** columns `sample` and `absorbance` (one row per replicate), and
+   optionally `sample_blank`, `extract_volume_mL`, `dilution_factor` and `mass_g` to
+   obtain the content per gram.
 3. In the sidebar, set the unit, path length, molar mass, confidence level and
    plotting library.
 4. Check **Statistics** → **Plots** → **Samples** and download the **Report**.
 
 The app is **not tied to any specific method**: enter the analyte, wavelength, units
-and molar mass of your own assay. Demo data is included in [`data/`](data/)
-(Fe(II)–o-phenanthroline at 510 nm, in triplicate; synthetic values) only to show how
-the app works — untick **Load demo data** in the sidebar to start with an empty table.
+and molar mass of your own assay. Synthetic demo data is included in [`data/`](data/)
+(generic: Fe(II)–o-phenanthroline at 510 nm; Folin-Ciocalteu with gallic acid, including
+samples, standard addition and validation; pH differential) only to show how the app works — untick **Load demo data** in the sidebar to start with an empty table.
 
 ### Using the R engine without the interface
 
@@ -149,10 +163,14 @@ Lambert-Beer-Alcohol-Content-Calculator/
 │   ├── engine_r.py               Python → Rscript bridge (Windows/Linux)
 │   ├── engine_python.py          NumPy/SciPy verification engine
 │   ├── interpretation.py         Plain-language interpretation of assumptions
+│   ├── methods.json / methods.py Method presets with references
+│   ├── analysis.py               Blank, content, LOD basis, standard addition, validation
+│   ├── ph_differential.py        Anthocyanins by pH differential (no curve)
 │   ├── plots.py                  Matplotlib, Seaborn, Plotly, Altair
 │   └── report.py                 Tables and HTML report
 ├── data/                         Example data
 ├── docs/THEORY.md                Formulas and references
+├── docs/METHODS.md               Method presets and their sources
 ├── scripts/                      Installers for Windows and Linux
 ├── tests/                        Tests (R vs Python)
 └── RESPONSIBLE_AI_POLICY.md
