@@ -1,0 +1,148 @@
+"""Concepts / glossary: what each quantity means and how to interpret it (EN / ES)."""
+
+from __future__ import annotations
+
+from .i18n import get_lang
+
+# Each section: (title_en, title_es, [(term_en, term_es, body_en, body_es), ...])
+SECTIONS = [
+    ("How to read your results", "Cómo leer sus resultados", [
+        ("Quick checklist", "Lista rápida",
+         """1. **Is the curve accepted?** Green banner at the top: R² above the threshold and no significant lack of fit.
+2. **Do the residuals look random?** In *Plots*, the points of *Residuals vs concentration* should scatter around 0 without a curve or funnel shape.
+3. **Is each sample inside the calibrated range and above the LOQ?** Status *OK* in *Samples & content*. If it is above the highest standard, dilute and re-read.
+4. **Report** the content as mean ± SD (RSD %) of the replicates, with the equivalent unit (e.g. mg GAE/g extract), the standard and the mass basis.""",
+         """1. **¿La curva está aceptada?** Aviso verde arriba: R² por encima del umbral y sin falta de ajuste significativa.
+2. **¿Los residuales parecen aleatorios?** En *Gráficos*, los puntos de *Residuales vs concentración* deben repartirse alrededor de 0 sin forma de curva ni de embudo.
+3. **¿Cada muestra está dentro del rango calibrado y por encima del LOQ?** Estado *OK* en *Muestras y contenido*. Si está por encima del estándar más alto, diluya y vuelva a leer.
+4. **Reporte** el contenido como media ± DE (DER %) de las réplicas, con la unidad de equivalentes (p. ej. mg EAG/g de extracto), el estándar y la base de masa."""),
+    ]),
+    ("Spectroscopy", "Espectroscopía", [
+        ("Absorbance (A)", "Absorbancia (A)",
+         "A = log₁₀(I₀/I): how much light the solution absorbs. It is dimensionless. The most reliable readings are between about **0.1 and 1.0**; above ~1.5 very little light reaches the detector and the response stops being linear.",
+         "A = log₁₀(I₀/I): cuánta luz absorbe la solución. Es adimensional. Las lecturas más confiables están entre **0,1 y 1,0** aproximadamente; por encima de ~1,5 llega muy poca luz al detector y la respuesta deja de ser lineal."),
+        ("Transmittance (T)", "Transmitancia (T)",
+         "T = I/I₀ (or %T = 100·T): fraction of light that passes through. A = −log₁₀T, so T = 10 % corresponds to A = 1.",
+         "T = I/I₀ (o %T = 100·T): fracción de luz que atraviesa la muestra. A = −log₁₀T, por lo que T = 10 % corresponde a A = 1."),
+        ("Beer-Lambert law", "Ley de Lambert-Beer",
+         "A = ε·l·c: absorbance is proportional to concentration. It holds for dilute solutions, monochromatic light, no scattering (clear samples) and a stable chemical form (pH, complexes, reaction time).",
+         "A = ε·l·c: la absorbancia es proporcional a la concentración. Se cumple en soluciones diluidas, con luz monocromática, sin dispersión (muestras transparentes) y con una forma química estable (pH, complejos, tiempo de reacción)."),
+        ("Molar absorptivity (ε)", "Absortividad molar (ε)",
+         "ε (L·mol⁻¹·cm⁻¹) says how strongly a substance absorbs at a given wavelength. It is obtained from the slope: ε = b/l (with the concentration in mol/L). A larger ε means a more sensitive method.",
+         "ε (L·mol⁻¹·cm⁻¹) indica qué tan fuerte absorbe una sustancia a una longitud de onda dada. Se obtiene de la pendiente: ε = b/l (con la concentración en mol/L). Un ε mayor significa un método más sensible."),
+        ("Path length (l)", "Paso óptico (l)",
+         "Distance the light travels through the sample: the cuvette width, usually 1 cm.",
+         "Distancia que recorre la luz dentro de la muestra: el ancho de la celda, normalmente 1 cm."),
+        ("Wavelength (λ)", "Longitud de onda (λ)",
+         "Read at the absorption maximum of the coloured product (e.g. 760 nm for Folin-Ciocalteu). There the response is largest and least sensitive to small wavelength errors.",
+         "Se lee en el máximo de absorción del producto coloreado (p. ej. 760 nm para Folin-Ciocalteu). Allí la respuesta es mayor y menos sensible a pequeños errores de longitud de onda."),
+        ("Reagent blank and sample blank", "Blanco de reactivos y blanco de muestra",
+         "**Reagent blank:** all reagents without analyte; its absorbance is subtracted from every reading (or used to zero the instrument). **Sample blank:** the sample with all reagents except the chromogenic one; it corrects the natural colour of extracts such as honey.",
+         "**Blanco de reactivos:** todos los reactivos sin analito; su absorbancia se resta de cada lectura (o se usa para el cero del equipo). **Blanco de muestra:** la muestra con todos los reactivos excepto el cromogénico; corrige el color natural de extractos como la miel."),
+    ]),
+    ("The calibration curve", "La curva de calibración", [
+        ("Calibration curve", "Curva de calibración",
+         "Standards of known concentration are measured and a straight line A = a + b·C is fitted by least squares. The line is then used backwards to find the concentration of the samples.",
+         "Se miden estándares de concentración conocida y se ajusta una recta A = a + b·C por mínimos cuadrados. Luego la recta se usa al revés para hallar la concentración de las muestras."),
+        ("Slope (b) — sensitivity", "Pendiente (b) — sensibilidad",
+         "Change in absorbance per unit of concentration. A larger slope means small concentration differences are easier to see. Its RSD (%) shows how precisely it is known.",
+         "Cambio de absorbancia por unidad de concentración. Una pendiente mayor permite distinguir diferencias pequeñas de concentración. Su DER (%) indica qué tan precisa es."),
+        ("Intercept (a)", "Intercepto (a)",
+         "Absorbance predicted at zero concentration. If its p-value is > 0.05 it is not different from zero (no constant bias). A significant intercept suggests blank absorbance or interferences; then **do not** force the line through the origin.",
+         "Absorbancia predicha a concentración cero. Si su valor p es > 0,05 no difiere de cero (no hay sesgo constante). Un intercepto significativo sugiere absorción del blanco o interferencias; en ese caso **no** fuerce la recta por el origen."),
+        ("R² and r", "R² y r",
+         "R² is the fraction of the variation in absorbance explained by the line (0–1); r is the correlation coefficient. Typical acceptance: R² ≥ 0.99 (≥ 0.995 recommended). **A high R² does not prove linearity**: always look at the residuals.",
+         "R² es la fracción de la variación de la absorbancia explicada por la recta (0–1); r es el coeficiente de correlación. Aceptación habitual: R² ≥ 0,99 (se recomienda ≥ 0,995). **Un R² alto no demuestra linealidad**: revise siempre los residuales."),
+        ("s(y/x) — standard error of the regression", "s(y/x) — error estándar de la regresión",
+         "Typical scatter of the points around the line, in absorbance units. The smaller, the better. It is used for the uncertainty of the samples and for the LOD and LOQ.",
+         "Dispersión típica de los puntos alrededor de la recta, en unidades de absorbancia. Cuanto menor, mejor. Se usa para la incertidumbre de las muestras y para el LOD y el LOQ."),
+        ("Residual", "Residual",
+         "Measured absorbance minus the absorbance predicted by the line. Residuals should be small and random (no pattern). A curved pattern means non-linearity; a funnel shape means the variance grows with concentration.",
+         "Absorbancia medida menos la absorbancia predicha por la recta. Los residuales deben ser pequeños y aleatorios (sin patrón). Un patrón curvo indica no linealidad; una forma de embudo indica que la varianza crece con la concentración."),
+        ("Standardized residual, leverage and Cook's distance", "Residual estandarizado, apalancamiento y distancia de Cook",
+         "**Standardized residual:** residual divided by its standard deviation; |value| > 2.5 flags a possible outlier. **Leverage:** how far a standard is from the centre of the range (extreme points pull the line more). **Cook's distance:** how much the line would change without that point; > 4/n flags an influential point. Review them, but only remove a point with a justified experimental cause.",
+         "**Residual estandarizado:** residual dividido por su desviación estándar; |valor| > 2,5 señala un posible atípico. **Apalancamiento:** qué tan lejos está un estándar del centro del rango (los puntos extremos tiran más de la recta). **Distancia de Cook:** cuánto cambiaría la recta sin ese punto; > 4/n señala un punto influyente. Revíselos, pero solo elimine un punto con una causa experimental justificada."),
+        ("Calibrated (linear) range", "Rango calibrado (lineal)",
+         "From the lowest to the highest standard. Samples must fall inside it: results outside are **extrapolations** and are not reliable — dilute (or concentrate) the sample.",
+         "Desde el estándar más bajo hasta el más alto. Las muestras deben caer dentro: los resultados fuera son **extrapolaciones** y no son confiables — diluya (o concentre) la muestra."),
+        ("Forcing through the origin", "Forzar por el origen",
+         "Fitting A = b·C without intercept. Only justified when the intercept is not significant and the blank is properly subtracted. Its R² is computed differently (uncentered) and looks artificially high.",
+         "Ajustar A = b·C sin intercepto. Solo se justifica si el intercepto no es significativo y el blanco está bien restado. Su R² se calcula distinto (no centrado) y parece artificialmente alto."),
+    ]),
+    ("Statistical tests", "Pruebas estadísticas", [
+        ("p-value", "Valor p",
+         "Probability of observing a result at least this extreme if the null hypothesis were true. With α = 0.05: p < 0.05 → the effect is significant; p > 0.05 → no evidence against the null hypothesis. In the assumption tests, **p > 0.05 is the desired result**.",
+         "Probabilidad de observar un resultado al menos tan extremo si la hipótesis nula fuera cierta. Con α = 0,05: p < 0,05 → el efecto es significativo; p > 0,05 → no hay evidencia contra la hipótesis nula. En las pruebas de supuestos, **p > 0,05 es el resultado deseado**."),
+        ("ANOVA and F of the regression", "ANOVA y F de la regresión",
+         "Splits the total variation into the part explained by the line (regression) and the unexplained part (residual). A very large F with p < 0.05 means the line really explains the data.",
+         "Divide la variación total en la parte explicada por la recta (regresión) y la no explicada (residual). Un F muy grande con p < 0,05 significa que la recta realmente explica los datos."),
+        ("Lack of fit", "Falta de ajuste",
+         "Needs replicates of the standards. Compares the deviation of the level means from the line with the pure error between replicates. **p > 0.05: the straight line is adequate**; p < 0.05: the relationship is not linear in that range.",
+         "Requiere réplicas de los estándares. Compara la desviación de las medias de cada nivel respecto a la recta con el error puro entre réplicas. **p > 0,05: la recta es adecuada**; p < 0,05: la relación no es lineal en ese rango."),
+        ("Shapiro-Wilk (normality)", "Shapiro-Wilk (normalidad)",
+         "Checks whether the residuals follow a normal distribution, which the confidence intervals assume. p > 0.05: compatible with normality.",
+         "Comprueba si los residuales siguen una distribución normal, que es lo que suponen los intervalos de confianza. p > 0,05: compatible con normalidad."),
+        ("Breusch-Pagan (homoscedasticity)", "Breusch-Pagan (homocedasticidad)",
+         "Checks whether the scatter is constant across the range. p > 0.05: constant variance. If p < 0.05 (scatter grows with concentration), a weighted regression may be better.",
+         "Comprueba si la dispersión es constante en todo el rango. p > 0,05: varianza constante. Si p < 0,05 (la dispersión crece con la concentración), puede convenir una regresión ponderada."),
+        ("Durbin-Watson (independence)", "Durbin-Watson (independencia)",
+         "Checks whether consecutive residuals are correlated, e.g. by instrument drift or reading order. Values near 2 (1.5–2.5) are fine.",
+         "Comprueba si los residuales consecutivos están correlacionados, p. ej. por deriva del equipo u orden de lectura. Valores cercanos a 2 (1,5–2,5) están bien."),
+        ("Confidence interval (CI)", "Intervalo de confianza (IC)",
+         "Range that contains the true value with the chosen confidence (e.g. 95 %). For a sample: C ± t·s(C). Narrower intervals mean more precise results.",
+         "Rango que contiene el valor verdadero con la confianza elegida (p. ej. 95 %). Para una muestra: C ± t·s(C). Un intervalo más estrecho significa un resultado más preciso."),
+        ("Confidence band vs prediction band", "Banda de confianza vs banda de predicción",
+         "**Confidence band** (darker): where the true line lies. **Prediction band** (lighter, wider): where a new individual reading is expected to fall.",
+         "**Banda de confianza** (más oscura): dónde está la recta verdadera. **Banda de predicción** (más clara y ancha): dónde se espera que caiga una nueva lectura individual."),
+        ("Student's t", "t de Student",
+         "Factor that widens the interval because s is estimated from few data. It depends on the confidence level and the degrees of freedom (n − 2). With more standards, t is smaller.",
+         "Factor que amplía el intervalo porque s se estima con pocos datos. Depende del nivel de confianza y de los grados de libertad (n − 2). Con más estándares, t es menor."),
+    ]),
+    ("Samples and results", "Muestras y resultados", [
+        ("Concentration by inverse regression", "Concentración por regresión inversa",
+         "C₀ = (Ā₀ − a)/b, where Ā₀ is the mean corrected absorbance of the m replicates. Its uncertainty s(C₀) is larger when the sample is far from the centre of the curve, when there are few replicates or few standards. See *Step-by-step calculation*.",
+         "C₀ = (Ā₀ − a)/b, donde Ā₀ es la absorbancia corregida media de las m réplicas. Su incertidumbre s(C₀) es mayor cuando la muestra está lejos del centro de la curva, cuando hay pocas réplicas o pocos estándares. Vea *Cálculo paso a paso*."),
+        ("LOD and LOQ", "LOD y LOQ",
+         "**LOD** = 3.3·σ/b: smallest concentration that can be *detected*. **LOQ** = 10·σ/b: smallest concentration that can be *quantified* with acceptable precision. Below the LOD report \"< LOD\"; between LOD and LOQ the analyte is present but the value is not reliable.",
+         "**LOD** = 3,3·σ/b: menor concentración que se puede *detectar*. **LOQ** = 10·σ/b: menor concentración que se puede *cuantificar* con precisión aceptable. Por debajo del LOD reporte \"< LOD\"; entre LOD y LOQ el analito está presente pero el valor no es confiable."),
+        ("Dilution factor (DF)", "Factor de dilución (FD)",
+         "How many times the sample was diluted before reading (final volume / aliquot volume). The concentration in the original sample is C × DF.",
+         "Cuántas veces se diluyó la muestra antes de leer (volumen final / volumen de alícuota). La concentración en la muestra original es C × FD."),
+        ("Content and equivalents (mg GAE/g, mg QE/g…)", "Contenido y equivalentes (mg EAG/g, mg EQ/g…)",
+         "The result is expressed as the amount of *standard* that would give the same response, per gram of extract or sample (e.g. mg of gallic acid equivalents per g). Always state the standard and the mass basis (extract, dry weight or fresh weight): results with different standards are not comparable.",
+         "El resultado se expresa como la cantidad de *estándar* que daría la misma respuesta, por gramo de extracto o de muestra (p. ej. mg de equivalentes de ácido gálico por g). Indique siempre el estándar y la base de masa (extracto, peso seco o peso fresco): resultados con estándares distintos no son comparables."),
+        ("Tannins by difference", "Taninos por diferencia",
+         "Casein binds tannins. Total polyphenols (TP) are measured before and residual polyphenols (RP) after casein; tannins = TP − RP. RP is read in a diluted supernatant, so it is multiplied by that dilution first.",
+         "La caseína se une a los taninos. Se miden polifenoles totales (PT) antes y polifenoles residuales (PR) después de la caseína; taninos = PT − PR. PR se lee en un sobrenadante diluido, por lo que primero se multiplica por esa dilución."),
+        ("Mean, SD and RSD %", "Media, DE y DER %",
+         "**SD** (standard deviation): scatter of the replicates. **RSD %** = 100·SD/mean: relative scatter, comparable between samples. Lower is better.",
+         "**DE** (desviación estándar): dispersión de las réplicas. **DER %** = 100·DE/media: dispersión relativa, comparable entre muestras. Cuanto menor, mejor."),
+        ("Technical vs biological replicates", "Réplicas técnicas vs biológicas",
+         "**Technical:** repeated readings of the same extract (measure the precision of the method). **Biological:** independent samples (different plants, hives, batches) — needed to draw conclusions about the material.",
+         "**Técnicas:** lecturas repetidas del mismo extracto (miden la precisión del método). **Biológicas:** muestras independientes (distintas plantas, colmenas, lotes) — necesarias para sacar conclusiones sobre el material."),
+    ]),
+    ("Method validation (ICH Q2)", "Validación del método (ICH Q2)", [
+        ("Linearity", "Linealidad",
+         "At least 5 levels, ideally with 3 replicates, R² ≥ 0.99 and random residuals.",
+         "Al menos 5 niveles, idealmente con 3 réplicas, R² ≥ 0,99 y residuales aleatorios."),
+        ("Precision: repeatability and intermediate precision", "Precisión: repetibilidad y precisión intermedia",
+         "**Repeatability:** same analyst, same day (n ≥ 6). **Intermediate precision:** another day, analyst or instrument. Expressed as RSD %; typical criteria ≤ 2 % (pharmaceutical) or ≤ 5 % (complex plant matrices).",
+         "**Repetibilidad:** mismo analista, mismo día (n ≥ 6). **Precisión intermedia:** otro día, analista o equipo. Se expresa como DER %; criterios habituales ≤ 2 % (farmacéutico) o ≤ 5 % (matrices vegetales complejas)."),
+        ("Accuracy: recovery", "Exactitud: recuperación",
+         "A known amount of standard is added to the sample: recovery % = 100·(C_spiked − C_unspiked)/C_added. Typical criteria 80–120 % (complex matrices) or 98–102 % (pharmaceutical).",
+         "Se añade una cantidad conocida de estándar a la muestra: recuperación % = 100·(C_fortificada − C_sin fortificar)/C_añadida. Criterios habituales 80–120 % (matrices complejas) o 98–102 % (farmacéutico)."),
+        ("Standard addition and matrix effect", "Adición estándar y efecto matriz",
+         "Standard is added to aliquots of the sample itself; the line is extended to A = 0 and the sample concentration is the |x-intercept|. If its slope differs from the external curve by more than ~3 %, the matrix changes the response (matrix effect) and standard addition should be used.",
+         "Se añade estándar a alícuotas de la propia muestra; la recta se extiende hasta A = 0 y la concentración de la muestra es el |corte con el eje x|. Si su pendiente difiere de la curva externa en más de ~3 %, la matriz cambia la respuesta (efecto matriz) y conviene cuantificar por adición estándar."),
+        ("Specificity and robustness", "Especificidad y robustez",
+         "**Specificity:** the method responds to the analyte and not to the matrix (matrix blanks, standard addition, comparison with HPLC). **Robustness:** results do not change with small variations of time, reagents, temperature or λ (± 2 nm).",
+         "**Especificidad:** el método responde al analito y no a la matriz (blancos de matriz, adición estándar, comparación con HPLC). **Robustez:** los resultados no cambian con pequeñas variaciones de tiempo, reactivos, temperatura o λ (± 2 nm)."),
+    ]),
+]
+
+
+def sections() -> list[tuple[str, list[tuple[str, str]]]]:
+    """Sections in the current language: [(title, [(term, body), ...]), ...]."""
+    es = get_lang() == "es"
+    return [(t_es if es else t_en, [(te if es else tn, be if es else bn) for tn, te, bn, be in items])
+            for t_en, t_es, items in SECTIONS]

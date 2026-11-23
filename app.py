@@ -15,6 +15,8 @@ import streamlit as st
 
 from calibrauv import __version__
 from calibrauv import analysis as an
+from calibrauv import concepts
+from calibrauv import handcalc as hc
 from calibrauv import methods as M
 from calibrauv import ph_differential as phd
 from calibrauv import plots as P
@@ -106,11 +108,64 @@ def normalize(df: pd.DataFrame, cols: list[str]) -> pd.DataFrame:
     return df[cols]
 
 
-def uploader(label: str, key: str, demo_df: pd.DataFrame | None, cols: dict, help_text: str = ""):
-    f = st.file_uploader(t("{l} — CSV or Excel", l=label), type=["csv", "xlsx", "xls"],
-                         key=f"f_{key}", help=help_text or None)
-    if f:
-        return read_file(f)
+# ------------------------------------------------------- state persistence
+# Streamlit forgets the value of a widget when it is not shown in a run (e.g. after
+# switching method) and rebuilds tables whose labels change (e.g. after switching
+# language). Everything the user types is therefore kept in st.session_state:
+#   * sidebar/tab widgets use stable keys starting with "w_" (re-saved on every run);
+#   * tables live in st.session_state["_tables"] and survive any change of mode.
+def keep_widget_state() -> None:
+    for k in list(st.session_state.keys()):
+        if isinstance(k, str) and k.startswith("w_"):
+            st.session_state[k] = st.session_state[k]
+
+
+def init(key: str, value):
+    """Default value for a widget key (only the first time)."""
+    if key not in st.session_state:
+        st.session_state[key] = value
+    return key
+
+
+def init_follow(key: str, default):
+    """Default that follows the context (language, demo) until the user edits the value."""
+    dkey = "_default_" + key
+    if key not in st.session_state or st.session_state.get(dkey) == st.session_state[key]:
+        st.session_state[key] = default
+    st.session_state[dkey] = default
+    return key
+
+
+def uploader(label: str, key: str, help_text: str = ""):
+    return st.file_uploader(t("{l} — CSV or Excel", l=label), type=["csv", "xlsx", "xls"],
+                            key=f"up_{key}", help=help_text or None)
+
+
+def table(name: str, initial: pd.DataFrame, use_demo: bool, upload=None, column_config=None) -> pd.DataFrame:
+    """Editable table whose content survives changes of language, method, tab or options.
+
+    The table is replaced only when the user uploads a new file or toggles the demo data.
+    """
+    store = st.session_state.setdefault("_tables", {})
+    up_id = f"{upload.name}:{upload.size}" if upload is not None else None
+    e = store.get(name)
+    if e is None or (up_id and e["up"] != up_id) or e["demo"] != use_demo:
+        clean = initial.reset_index(drop=True)
+        e = store[name] = {"src": clean, "cur": clean, "ver": 0, "sig": None, "up": up_id, "demo": use_demo}
+    key = f"_ed_{name}_{e['ver']}"
+    if e["sig"] != get_lang() or key not in st.session_state:
+        # rebuild the widget from the last saved content (nothing typed is lost)
+        e["ver"] += 1
+        e["src"], e["sig"] = e["cur"].reset_index(drop=True), get_lang()
+        key = f"_ed_{name}_{e['ver']}"
+    out = st.data_editor(e["src"], key=key, num_rows="dynamic", width="stretch", column_config=column_config)
+    e["cur"] = out
+    return out
+
+
+def source(upload, demo_df: pd.DataFrame | None, cols: dict) -> pd.DataFrame:
+    if upload is not None:
+        return read_file(upload)
     if demo_df is not None:
         return demo_df.copy()
     return empty(cols)
@@ -201,6 +256,92 @@ def show_method_tab(m: dict, variant: dict | None, standard: dict | None):
                  "practice are not taken from the cited references."))
 
 
+def show_concepts():
+    st.markdown(t("What each quantity means and how to interpret it. Use it together with the "
+                  "**Step-by-step calculation** tab."))
+    for title, items in concepts.sections():
+        st.subheader(title)
+        for term, body in items:
+            with st.expander(term):
+                st.markdown(body)
+
+
+def show_steps(stp: dict, unit: str, content_label: str, label: str = ""):
+    """Formulas with the user's own numbers for one sample (see calibrauv/handcalc.py)."""
+    F = hc.fmt
+    k = stp["k"]
+    a, b = k["a"], k["b"]
+    reps = stp["reps"]
+    if label:
+        st.markdown(f"##### {label}")
+    st.markdown(f"**1. {t('Calibration curve')}**")
+    if k["origin"]:
+        st.latex(rf"A = b\,C = {F(b)}\,C")
+    else:
+        st.latex(rf"A = a + b\,C = {F(a)} + {F(b)}\,C")
+    st.caption(t("n = {n} standards · mean absorbance of the standards Ā = {y} · Sxx = {sxx} · "
+                 "s(y/x) = {s} · t({df}; {c}%) = {tv}", n=k["n"], y=f"{k['y_mean']:.5g}",
+                 sxx=f"{k['sxx']:.5g}", s=f"{k['s']:.4g}", df=k["df"], c=int(k["conf"] * 100),
+                 tv=f"{k['t']:.4f}"))
+
+    st.markdown(f"**2. {t('Blank correction of each replicate')}**")
+    for i, r in enumerate(reps.itertuples(), 1):
+        st.latex(rf"A_{{corr,{i}}} = A_{{{i}}} - A_{{\text{{{t('blank')}}}}} - A_{{\text{{{t('sample blank')}}}}} = "
+                 rf"{F(r.A)} - {F(stp['reagent_blank'])} - {F(r.sample_blank)} = {F(r.A_corr)}")
+
+    st.markdown(f"**3. {t('Mean of the m = {m} replicates', m=stp['m'])}**")
+    st.latex(rf"\bar A_0 = \frac{{{' + '.join(F(v) for v in reps['A_corr'])}}}{{{stp['m']}}} = {F(stp['y0'])}")
+
+    st.markdown(f"**4. {t('Concentration by inverse regression')}**")
+    if k["origin"]:
+        st.latex(rf"C_0 = \frac{{\bar A_0}}{{b}} = \frac{{{F(stp['y0'])}}}{{{F(b)}}} = {F(stp['c0_raw'])}")
+    else:
+        st.latex(rf"C_0 = \frac{{\bar A_0 - a}}{{b}} = \frac{{{F(stp['y0'])} - {F(a)}}}{{{F(b)}}} = {F(stp['c0_raw'])}")
+    if stp["extra_dilution"] != 1:
+        st.latex(rf"C_0 \times DF_{{casein}} = {F(stp['c0_raw'])} \times {F(stp['extra_dilution'])} = {F(stp['c0'])}")
+    st.markdown(f"➡️ **C₀ = {stp['c0']:.5g} {unit}**")
+
+    st.markdown(f"**5. {t('Uncertainty of the concentration')}**")
+    if k["origin"]:
+        st.latex(r"s_{C_0} = \frac{s_{y/x}}{|b|}\sqrt{\frac{1}{m}+\frac{\bar A_0^2}{b^2\sum x_i^2}}")
+        st.latex(rf"s_{{C_0}} = \frac{{{F(k['s'])}}}{{{F(abs(b))}}}\sqrt{{\frac{{1}}{{{stp['m']}}}+"
+                 rf"\frac{{{F(stp['y0'])}^2}}{{{F(b)}^2\cdot{F(k['sx2'])}}}}} = {F(stp['s_c0'])}")
+    else:
+        st.latex(r"s_{C_0} = \frac{s_{y/x}}{|b|}\sqrt{\frac{1}{m}+\frac{1}{n}+\frac{(\bar A_0-\bar A)^2}{b^2 S_{xx}}}")
+        st.latex(rf"s_{{C_0}} = \frac{{{F(k['s'])}}}{{{F(abs(b))}}}\sqrt{{\frac{{1}}{{{stp['m']}}}+\frac{{1}}{{{k['n']}}}+"
+                 rf"\frac{{({F(stp['y0'])}-{F(k['y_mean'])})^2}}{{{F(b)}^2\cdot{F(k['sxx'])}}}}} = {F(stp['s_c0'])}")
+
+    st.markdown(f"**6. {t('Confidence interval')}**")
+    st.latex(rf"C_0 \pm t\,s_{{C_0}} = {F(stp['c0'])} \pm {F(k['t'])}\times{F(stp['s_c0'])} = "
+             rf"[{F(stp['ci_low'])};\ {F(stp['ci_high'])}]")
+
+    st.markdown(f"**7. {t('Checks')}**")
+    st.markdown(("✅ " if stp["in_range"] else "⚠️ ")
+                + t("Calibrated range {lo}–{hi} {u}: C₀ = {c}", lo=f"{k['x_min']:.4g}", hi=f"{k['x_max']:.4g}",
+                    u=unit, c=f"{stp['c0_raw']:.4g}"))
+    st.markdown(("✅ " if stp["above_loq"] else "⚠️ ")
+                + t("LOQ = {q} {u} (LOD = {d} {u})", q=f"{k['loq']:.4g}", d=f"{k['lod']:.4g}", u=unit))
+
+    if reps["content"].notna().any():
+        st.markdown(f"**8. {t('Content of each replicate')} ({content_label})**")
+        factor = reps["content"] / reps["C"]
+        for i, r in enumerate(reps.itertuples(), 1):
+            dfv = r.dilution_factor if r.dilution_factor == r.dilution_factor else 1.0   # NaN → 1
+            if r.extract_conc_ug_mL == r.extract_conc_ug_mL:  # extract concentration given
+                # unit/scale factor (1000 for mg/g with C and C_extract in µg/mL)
+                kf = r.content * r.extract_conc_ug_mL / (r.C * dfv) if r.C else factor.iloc[i - 1]
+                st.latex(rf"\text{{{t('Content')}}}_{{{i}}} = \frac{{C_{{{i}}}\cdot DF}}{{C_{{extract}}}}\times{F(kf)} = "
+                         rf"\frac{{{F(r.C)}\times{F(dfv)}}}{{{F(r.extract_conc_ug_mL)}}}\times{F(kf)} = {F(r.content)}")
+            elif r.content == r.content:
+                st.latex(rf"\text{{{t('Content')}}}_{{{i}}} = C_{{{i}}}\cdot\frac{{V}}{{1000}}\cdot\frac{{DF}}{{m}} = "
+                         rf"{F(r.C)}\cdot\frac{{{F(r.extract_volume_mL)}}}{{1000}}\cdot"
+                         rf"\frac{{{F(dfv)}}}{{{F(r.mass_g)}}} = {F(r.content)}")
+        if stp["content_mean"] is not None:
+            sd = stp["content_sd"]
+            st.markdown(f"➡️ **{stp['content_mean']:.5g}" + (f" ± {sd:.3g}" if sd is not None else "")
+                        + f" {content_label}** " + t("(mean ± SD)"))
+
+
 def show_ai_tab():
     st.subheader(t("Free and open-source software"))
     st.markdown(t("CalibraUV is distributed under the **MIT license**: you may use, study, modify "
@@ -220,11 +361,12 @@ def show_ai_tab():
 
 
 # ===================================================================== sidebar
+keep_widget_state()
 settings = load_settings()
 with st.sidebar:
     langs = list(LANGUAGES)
-    lang = st.radio("🌐 Language / Idioma", langs, horizontal=True,
-                    index=langs.index(settings.get("lang", "en")) if settings.get("lang") in langs else 0,
+    init("w_lang", settings.get("lang") if settings.get("lang") in langs else "en")
+    lang = st.radio("🌐 Language / Idioma", langs, horizontal=True, key="w_lang",
                     format_func=lambda k: LANGUAGES[k])
     if lang != settings.get("lang"):
         save_settings(lang=lang)
@@ -237,7 +379,8 @@ with st.sidebar:
     st.caption(t("v{v} · UV-Vis calibration curve · Beer-Lambert law", v=__version__))
 
     st.subheader(t("Method"))
-    mid = st.selectbox(t("Assay / method"), [m["id"] for m in all_methods],
+    init("w_method", all_methods[0]["id"])
+    mid = st.selectbox(t("Assay / method"), [m["id"] for m in all_methods], key="w_method",
                        format_func=lambda i: field(M.get(i), "name"),
                        help=t("Presets from the literature and from the laboratory protocol "
                               "(calibrauv/methods.json). 'Generic' works for any analyte that follows "
@@ -246,18 +389,18 @@ with st.sidebar:
     variant = None
     if method.get("variants"):
         vi = st.selectbox(t("Variant / conditions"), range(len(method["variants"])),
-                          format_func=lambda i: field(method["variants"][i], "name"), key=f"var_{mid}")
+                          format_func=lambda i: field(method["variants"][i], "name"), key=init(f"w_var_{mid}", 0))
         variant = method["variants"][vi]
     standard = None
     if method.get("standards"):
         si = st.selectbox(t("Reference standard"), range(len(method["standards"])),
                           format_func=lambda i: f"{field(method['standards'][i], 'name')} "
                                                 f"({field(method['standards'][i], 'abbr')})",
-                          key=f"std_{mid}")
+                          key=init(f"w_std_{mid}", 0))
         standard = method["standards"][si]
 
     demo = DEMOS.get(mid)
-    use_demo = st.checkbox(t("Load demo data"), demo is not None, disabled=demo is None, key=f"demo_{mid}",
+    use_demo = st.checkbox(t("Load demo data"), disabled=demo is None, key=init(f"w_demo_{mid}", demo is not None),
                            help=t("Synthetic values, only to show how the app works. Untick it to start "
                                   "with empty tables."))
     if demo is None:
@@ -269,63 +412,68 @@ with st.sidebar:
     if is_curve:
         std_suffix = f" ({field(standard, 'abbr')})" if standard else ""
         default_analyte = (demo or {}).get("analyte") or (f"{field(method, 'analyte')}{std_suffix}")
-        analyte = st.text_input(t("Analyte"), default_analyte,
-                                key=f"an_{mid}_{standard and standard['abbr']}_{lang}",
+        analyte = st.text_input(t("Analyte"), key=init_follow(f"w_an_{mid}_{standard and standard['abbr']}",
+                                                               default_analyte),
                                 placeholder=t("e.g. KMnO₄, ethanol, Fe(II), caffeine…"))
         wl_default = (demo or {}).get("wavelength") or (variant or {}).get("wavelength_nm")
-        wavelength = st.number_input(t("Wavelength λ (nm)"), 190.0, 1100.0,
-                                     float(wl_default) if wl_default else None, 1.0,
-                                     placeholder=t("optional"), key=f"wl_{mid}_{variant and variant['name']}")
+        wavelength = st.number_input(t("Wavelength λ (nm)"), 190.0, 1100.0, step=1.0, placeholder=t("optional"),
+                                     key=init_follow(f"w_wl_{mid}_{variant and variant['name']}",
+                                                     float(wl_default) if wl_default else None))
         unit_default = (demo or {}).get("unit") or method.get("default_unit") or "mol/L"
         unit = st.selectbox(t("Concentration unit of the standards"), list(UNITS),
-                            index=list(UNITS).index(unit_default), key=f"unit_{mid}")
+                            key=init_follow(f"w_unit_{mid}", unit_default))
         molar_mass = None
         if UNITS[unit] is None:
             mm_default = (demo or {}).get("molar_mass") or (standard or {}).get("molar_mass") or 0.0
-            molar_mass = st.number_input(t("Molar mass (g/mol) for ε"), 0.0, 1e6, float(mm_default), 0.001,
+            molar_mass = st.number_input(t("Molar mass (g/mol) for ε"), 0.0, 1e6, step=0.001,
                                          format="%.3f", help=t("0 = do not compute molar ε"),
-                                         key=f"mm_{mid}_{standard and standard['abbr']}")
-        path_length = st.number_input(t("Path length l (cm)"), 0.01, 10.0, 1.0, 0.1)
+                                         key=init_follow(f"w_mm_{mid}_{standard and standard['abbr']}",
+                                                         float(mm_default)))
+        path_length = st.number_input(t("Path length l (cm)"), 0.01, 10.0, step=0.1, key=init("w_path", 1.0))
         reagent_blank = st.number_input(
-            t("Reagent blank absorbance"), -1.0, 3.0, 0.0, 0.001, format="%.4f",
+            t("Reagent blank absorbance"), -1.0, 3.0, step=0.001, format="%.4f", key=init(f"w_blank_{mid}", 0.0),
             help=t("Subtracted from every standard and sample (A_corr = A − A_blank). Leave 0 if the "
                    "blank was used to zero the instrument."))
         casein_df = None
         if method.get("difference"):
-            casein_df = st.number_input(t("Casein step dilution factor (RP)"), 1.0, 100.0,
-                                        float(method.get("casein_dilution_factor", 1.0)), 0.1,
+            casein_df = st.number_input(t("Casein step dilution factor (RP)"), 1.0, 100.0, step=0.1,
+                                        key=init(f"w_casein_{mid}", float(method.get("casein_dilution_factor", 1.0))),
                                         help=field(method, "casein_dilution_note"))
 
         st.subheader(t("Statistics"))
-        conf = st.select_slider(t("Confidence level"), [0.90, 0.95, 0.99], 0.95,
+        conf = st.select_slider(t("Confidence level"), [0.90, 0.95, 0.99], key=init("w_conf", 0.95),
                                 format_func=lambda v: f"{v:.0%}")
-        origin = st.checkbox(t("Force through the origin (A = b·C)"), False,
+        origin = st.checkbox(t("Force through the origin (A = b·C)"), key=init("w_origin", False),
                              help=t("Only if the intercept is not significant and the blank is corrected."))
         engine_options = ["auto", "R", "Python"] if engines["R"] else ["Python"]
-        engine = st.selectbox(t("Computation engine"), engine_options,
+        if st.session_state.get("w_engine") not in engine_options:
+            st.session_state["w_engine"] = engine_options[0]
+        engine = st.selectbox(t("Computation engine"), engine_options, key="w_engine",
                               help=t("R (stats::lm) is the reference engine; Python is the fallback."))
         if not engines["R"]:
             st.warning(t("R not found: Python will be used. Install R to use stats::lm."))
-        lod_key = st.selectbox(t("σ for LOD/LOQ (ICH Q2)"), list(an.LOD_BASES), format_func=t)
+        lod_key = st.selectbox(t("σ for LOD/LOQ (ICH Q2)"), list(an.LOD_BASES), format_func=t,
+                               key=init("w_lod", list(an.LOD_BASES)[0]))
         lod_basis = an.LOD_BASES[lod_key]
         c1, c2 = st.columns(2)
-        r2_min = c1.number_input(t("R² minimum"), 0.9, 1.0, float(ACC["r2_min"]), 0.001, format="%.3f")
-        r2_rec = c2.number_input(t("R² recommended"), 0.9, 1.0, float(ACC["r2_recommended"]), 0.001,
-                                 format="%.3f")
+        r2_min = c1.number_input(t("R² minimum"), 0.9, 1.0, step=0.001, format="%.3f",
+                                 key=init("w_r2min", float(ACC["r2_min"])))
+        r2_rec = c2.number_input(t("R² recommended"), 0.9, 1.0, step=0.001, format="%.3f",
+                                 key=init("w_r2rec", float(ACC["r2_recommended"])))
 
         st.subheader(t("Plots"))
         libs = ["Plotly", "Matplotlib + Seaborn", "Matplotlib", "Altair"]
-        lib = st.radio(t("Library"), libs, index=0,
+        lib = st.radio(t("Library"), libs, key=init("w_lib", libs[0]),
                        format_func=lambda k: t("Plotly (interactive)") if k == "Plotly" else k)
-        style = st.selectbox(t("Seaborn style"), ["whitegrid", "darkgrid", "ticks", "white"],
+        style = st.selectbox(t("Seaborn style"), ["whitegrid", "darkgrid", "ticks", "white"], key=init("w_style", "whitegrid"),
                              disabled=lib != "Matplotlib + Seaborn")
     else:
         const = method["constants"]
         st.caption(t("No calibration curve: uses the known ε of {p}.", p=field(const, "pigment")))
-        mw = st.number_input(t("Molar mass MW (g/mol)"), 1.0, 1e5, float(const["MW_g_mol"]), 0.1)
-        eps_known = st.number_input(t("Molar absorptivity ε (L·mol⁻¹·cm⁻¹)"), 1.0, 1e7,
-                                    float(const["epsilon_L_mol_cm"]), 100.0)
-        path_length = st.number_input(t("Path length l (cm)"), 0.01, 10.0, 1.0, 0.1)
+        mw = st.number_input(t("Molar mass MW (g/mol)"), 1.0, 1e5, step=0.1, key=init("w_mw", float(const["MW_g_mol"])))
+        eps_known = st.number_input(t("Molar absorptivity ε (L·mol⁻¹·cm⁻¹)"), 1.0, 1e7, step=100.0,
+                                    key=init("w_epsk", float(const["epsilon_L_mol_cm"])))
+        path_length = st.number_input(t("Path length l (cm)"), 0.01, 10.0, step=0.1, key=init("w_path", 1.0))
         st.caption(t("⚠️ Default constants: {s} — verify.", s=const["source"]))
     st.divider()
     st.caption("🤖 " + ai_notice())
@@ -337,18 +485,20 @@ st.caption(f"{t('Method')}: **{field(method, 'name')}**" + (f" · {field(variant
 
 # =========================================================== pH differential
 if not is_curve:
-    t_data, t_res, t_rep, t_meth, t_ai = st.tabs(
-        [t("📋 Data"), t("🧮 Results"), t("📄 Report"), t("📚 Method & references"), t("🤖 AI & license")])
+    t_data, t_res, t_rep, t_conc, t_meth, t_ai = st.tabs(
+        [t("📋 Data"), t("🧮 Results"), t("📄 Report"), t("📖 Concepts"), t("📚 Method & references"),
+         t("🤖 AI & license")])
     with t_data:
         st.markdown(t("One row per replicate. Read each diluted sample at **520 nm** and **700 nm** in "
                       "**pH 1.0** and **pH 4.5** buffers. `extract_volume_mL` and `mass_g` are optional "
                       "(for content per gram)."))
-        base = uploader(t("Absorbance readings"), "ph", load_csv(demo["data"]) if demo else None,
-                        {c: (str if c == "sample" else float) for c in phd.COLUMNS})
+        up = uploader(t("Absorbance readings"), f"ph_{mid}")
+        base = source(up, load_csv(demo["data"]) if demo else None,
+                      {c: (str if c == "sample" else float) for c in phd.COLUMNS})
         for c in phd.COLUMNS:
             if c not in base.columns:
                 base[c] = np.nan
-        data = st.data_editor(base[phd.COLUMNS], num_rows="dynamic", width="stretch", key="ed_ph")
+        data = table(f"ph_{mid}", base[phd.COLUMNS], use_demo, up)
     rep, summ = phd.compute(data, mw, eps_known, path_length)
     abbr_c = const["abbr"]
     with t_res:
@@ -380,6 +530,8 @@ if not is_curve:
                                        (t("References"), refs)])
             st.download_button(t("⬇️ HTML report"), html, "ph_differential_report.html", "text/html")
             st.download_button(t("⬇️ Results CSV"), rep.to_csv(index=False), "ph_differential.csv", "text/csv")
+    with t_conc:
+        show_concepts()
     with t_meth:
         show_method_tab(method, variant, standard)
     with t_ai:
@@ -392,39 +544,38 @@ abbr = field(standard, "abbr") if standard else None
 is_diff = bool(method.get("difference"))
 banner = st.container()
 tabs = st.tabs([t("📋 Data"), t("📊 Statistics"), t("📈 Plots"), t("🧫 Samples & content"),
-                t("➕ Standard addition"), t("✅ Validation"), t("📄 Report"), t("📚 Method & references"),
-                t("🤖 AI & license")])
-(t_data, t_stats, t_plots, t_samples, t_add, t_val, t_rep, t_meth, t_ai) = tabs
+                t("🔍 Step-by-step calculation"), t("➕ Standard addition"), t("✅ Validation"), t("📄 Report"),
+                t("📖 Concepts"), t("📚 Method & references"), t("🤖 AI & license")])
+(t_data, t_stats, t_plots, t_samples, t_steps, t_add, t_val, t_rep, t_conc, t_meth, t_ai) = tabs
 
 with t_data:
     c1, c2 = st.columns(2)
     with c1:
         st.subheader(t("Standards"))
-        base = uploader(t("Standards (col. 1: concentration, col. 2: absorbance)"), "std",
-                        load_csv(demo["standards"]) if demo else None, {"c": float, "A": float})
+        up = uploader(t("Standards (col. 1: concentration, col. 2: absorbance)"), f"std_{mid}")
+        base = source(up, load_csv(demo["standards"]) if demo else None, {"c": float, "A": float})
         base = base.iloc[:, :2].copy()
-        base.columns = [t("Concentration"), t("Absorbance")]
-        standards = st.data_editor(base, num_rows="dynamic", width="stretch", key=f"ed_std_{mid}_{lang}")
+        base.columns = ["concentration", "absorbance"]
+        standards = table(f"std_{mid}", base, use_demo, up, column_config={
+            "concentration": st.column_config.NumberColumn(t("Concentration"), format="%g"),
+            "absorbance": st.column_config.NumberColumn(t("Absorbance"), format="%.4f")})
         if method.get("calibration_levels_ug_mL"):
             st.caption(t("Protocol levels: {l} µg/mL", l=", ".join(f"{v:g}" for v in method["calibration_levels_ug_mL"])))
     with c2:
         cols = TANNIN_COLS if is_diff else SAMPLE_COLS
         st.subheader(t("Samples: TP and RP per replicate") if is_diff else t("Unknown samples (optional)"))
-        base_u = uploader(t("Samples (one row per replicate)"), "unk",
-                          load_csv(demo["samples"]) if demo else None,
-                          {c: (str if c == "sample" else float) for c in cols},
-                          t("Columns: {c}", c=", ".join(cols)))
-        samples = st.data_editor(normalize(base_u, cols), num_rows="dynamic", width="stretch",
-                                 key=f"ed_unk_{mid}_{lang}",
-                                 column_config=sample_column_config(method.get("default_extract_conc_ug_mL")))
+        up = uploader(t("Samples (one row per replicate)"), f"unk_{mid}", t("Columns: {c}", c=", ".join(cols)))
+        base_u = source(up, load_csv(demo["samples"]) if demo else None,
+                        {c: (str if c == "sample" else float) for c in cols})
+        samples = table(f"unk_{mid}", normalize(base_u, cols), use_demo, up,
+                        column_config=sample_column_config(method.get("default_extract_conc_ug_mL")))
         st.caption(t("Content per gram: fill `extract_conc_ug_mL` (extract dissolved at a known "
                      "concentration, e.g. 50 µg/mL) **or** `extract_volume_mL` + `mass_g`. "
                      "`sample_blank`: extract with all reagents except the chromogenic one."))
     blank_readings = None
     if lod_basis == "blanks":
         st.subheader(t("Blank readings for LOD/LOQ (≥ 10 recommended)"))
-        blank_readings = st.data_editor(empty({"blank_absorbance": float}), num_rows="dynamic",
-                                        key="ed_blanks")["blank_absorbance"]
+        blank_readings = table(f"blanks_{mid}", empty({"blank_absorbance": float}), use_demo)["blank_absorbance"]
     st.info(t("Recommended design: ≥ {l} levels × {r} replicates; absorbances between {lo} and {hi}.",
               l=ACC["min_levels"], r=ACC["replicates_per_level"], lo=ACC["absorbance_range"][0],
               hi=ACC["absorbance_range"][1]))
@@ -532,7 +683,7 @@ with t_plots:
         st.altair_chart(P.altair_residuals(res, xlab), width="stretch")
 
 # ----------------------------------------------------------- samples/content
-content_df, content_label, tannin_summary = pd.DataFrame(), "", pd.DataFrame()
+content_df, content_label, tannin_summary, scale = pd.DataFrame(), "", pd.DataFrame(), "mg"
 with t_samples:
     tm = samples_table(res, unit)
     if tm.empty:
@@ -551,12 +702,12 @@ with t_samples:
         st.subheader(t("Content in the sample"))
         c1, c2 = st.columns(2)
         bases = ["extract", "DW", "FW"]
-        basis = c1.selectbox(t("Mass basis"), bases, index=0 if method.get("group") == "lab" else 1,
+        basis = c1.selectbox(t("Mass basis"), bases, key=init(f"w_basis_{mid}", "extract" if method.get("group") == "lab" else "DW"),
                              format_func=lambda k: {"extract": t("g of extract"), "DW": t("g dry weight (DW)"),
                                                     "FW": t("g fresh weight (FW)")}[k])
         scale = "mg"
         if an.is_mass_unit(unit):
-            scale = c2.radio(t("Result scale"), ["mg", "µg"], horizontal=True,
+            scale = c2.radio(t("Result scale"), ["mg", "µg"], horizontal=True, key=init("w_scale", "mg"),
                              format_func=lambda k: f"{k}/g",
                              help=t("Use the same scale for all assays so results can be compared."))
         basis_txt = {"extract": t("g extract"), "DW": t("g DW"), "FW": t("g FW")}[basis]
@@ -604,20 +755,64 @@ with t_samples:
         st.caption(t("Report as mean ± SD (RSD%) of replicates, stating the standard and the mass basis. "
                      "Technical replicates do not replace biological replicates."))
 
+# ------------------------------------------------------- step-by-step tab
+with t_steps:
+    st.markdown(t("The same calculation the app does, written out as you would do it by hand, with the "
+                  "numbers of the selected sample. The result is compared with the statistical engine."))
+    if is_diff:
+        names = list(dict.fromkeys(samples.dropna(subset=["A_TP", "A_RP"])["sample"].astype(str)))
+    else:
+        names = list(dict.fromkeys(smp["sample"].astype(str)))
+    if not names:
+        st.info(t("Add sample absorbances in the Data tab."))
+    else:
+        if st.session_state.get(f"w_hc_{mid}") not in names:
+            st.session_state[f"w_hc_{mid}"] = names[0]
+        name = st.selectbox(t("Sample"), names, key=f"w_hc_{mid}")
+        by_engine = {u["sample"]: u for u in res["unknowns"]}
+        if is_diff:
+            rows = samples[samples["sample"].astype(str) == name]
+            s_tp = hc.sample_steps(res, rows, reagent_blank, unit, scale, absorbance_col="A_TP")
+            show_steps(s_tp, unit, content_label, t("Total polyphenols (TP)"))
+            st.divider()
+            s_rp = hc.sample_steps(res, rows, reagent_blank, unit, scale, absorbance_col="A_RP",
+                                   extra_dilution=casein_df)
+            show_steps(s_rp, unit, content_label, t("Residual polyphenols (RP)"))
+            st.divider()
+            st.markdown(f"**{t('Tannins by difference')}**")
+            st.latex(rf"\text{{{t('Tannins')}}} = TP - RP\cdot DF_{{casein}} = {hc.fmt(s_tp['c0'])} - "
+                     rf"{hc.fmt(s_rp['c0'])} = {hc.fmt(s_tp['c0'] - s_rp['c0'])}")
+            if s_tp["content_mean"] is not None and s_rp["content_mean"] is not None:
+                st.markdown(f"➡️ **{s_tp['content_mean'] - s_rp['content_mean']:.5g} {content_label}**")
+            checks = [(s_tp, by_engine.get(f"{name} (TP)")), (s_rp, by_engine.get(f"{name} (RP)"))]
+        else:
+            rows = smp[smp["sample"].astype(str) == name]
+            s1 = hc.sample_steps(res, rows, reagent_blank, unit, scale)
+            show_steps(s1, unit, content_label)
+            checks = [(s1, by_engine.get(name))]
+        ok = all(u is not None and np.isclose(sx["c0_raw"], u["x0"], rtol=1e-8) and
+                 np.isclose(sx["s_c0"] / sx["extra_dilution"], u["s_x0"], rtol=1e-6) for sx, u in checks)
+        if ok:
+            st.success(t("✓ The hand calculation gives exactly the same result as the engine ({e}).", e=res["engine"]))
+        else:
+            st.error(t("The hand calculation differs from the engine result; please report it."))
+
 # --------------------------------------------------------- standard addition
 sa = None
 with t_add:
     st.markdown(t("Add increasing amounts of standard to equal aliquots of sample. Enter the **final "
                   "concentration of added standard** in the measured solution (same unit as the curve) and "
                   "the absorbance. The sample concentration is the |x-intercept|: $C = a/b$."))
-    base_a = uploader(t("Standard addition data (col. 1: added concentration, col. 2: absorbance)"), "add",
-                      load_csv(demo["addition"]) if demo and "addition" in demo else None,
-                      {"added": float, "A": float})
+    up = uploader(t("Standard addition data (col. 1: added concentration, col. 2: absorbance)"), f"add_{mid}")
+    base_a = source(up, load_csv(demo["addition"]) if demo and "addition" in demo else None,
+                    {"added": float, "A": float})
     base_a = base_a.iloc[:, :2].copy()
-    base_a.columns = [t("Added concentration"), t("Absorbance")]
-    add_data = st.data_editor(base_a, num_rows="dynamic", width="stretch", key=f"ed_add_{mid}_{lang}")
+    base_a.columns = ["added", "absorbance"]
+    add_data = table(f"add_{mid}", base_a, use_demo, up, column_config={
+        "added": st.column_config.NumberColumn(t("Added concentration"), format="%g"),
+        "absorbance": st.column_config.NumberColumn(t("Absorbance"), format="%.4f")})
     df_aliquot = st.number_input(t("Dilution factor of the sample aliquot in the measured solution"),
-                                 1.0, 1e6, 1.0, 1.0)
+                                 1.0, 1e6, step=1.0, key=init(f"w_dfaliq_{mid}", 1.0))
     add_corr = an.correct_standards(add_data.dropna(), reagent_blank)
     if len(add_corr.dropna()) >= 3 and add_corr.iloc[:, 0].nunique() >= 2:
         try:
@@ -668,14 +863,14 @@ with t_val:
 
     st.subheader(t("Precision (repeatability / intermediate precision)"))
     rsd_keys = list(ACC["rsd_criteria_pct"])
-    crit_rsd = st.selectbox(t("RSD criterion"), rsd_keys, index=1, format_func=t)
+    crit_rsd = st.selectbox(t("RSD criterion"), rsd_keys, format_func=t, key=init("w_rsd", rsd_keys[1]))
     max_rsd = ACC["rsd_criteria_pct"][crit_rsd]
     st.caption(t("Repeatability: n ≥ 6 at 100% or 9 determinations at 3 levels. Use the `series` column for "
                  "another day / analyst / instrument (intermediate precision)."))
-    base_p = uploader(t("Precision readings (series, absorbance)"), "prec",
-                      load_csv(demo["precision"]) if demo and "precision" in demo else None,
-                      {"series": str, "absorbance": float})
-    prec = st.data_editor(base_p, num_rows="dynamic", width="stretch", key=f"ed_prec_{mid}")
+    up = uploader(t("Precision readings (series, absorbance)"), f"prec_{mid}")
+    base_p = source(up, load_csv(demo["precision"]) if demo and "precision" in demo else None,
+                    {"series": str, "absorbance": float})
+    prec = table(f"prec_{mid}", base_p, use_demo, up)
     if "series" in prec and "absorbance" in prec and len(prec.dropna(subset=["absorbance"])):
         p_in = prec.copy()
         p_in["absorbance"] = pd.to_numeric(p_in["absorbance"], errors="coerce") - reagent_blank
@@ -691,13 +886,13 @@ with t_val:
 
     st.subheader(t("Accuracy (recovery)"))
     rec_keys = list(ACC["recovery_criteria_pct"])
-    crit_rec = st.selectbox(t("Recovery criterion"), rec_keys, format_func=t)
+    crit_rec = st.selectbox(t("Recovery criterion"), rec_keys, format_func=t, key=init("w_rec", rec_keys[0]))
     lims = tuple(ACC["recovery_criteria_pct"][crit_rec])
     st.latex(rf"\text{{{t('Recovery')}}}\,\% = 100\cdot\frac{{C_{{spiked}}-C_{{unspiked}}}}{{C_{{added}}}}")
-    base_r = uploader(t("Recovery data (level, A_unspiked, A_spiked, C_added)"), "rec",
-                      load_csv(demo["recovery"]) if demo and "recovery" in demo else None,
-                      {"level": str, "A_unspiked": float, "A_spiked": float, "C_added": float})
-    rec = st.data_editor(base_r, num_rows="dynamic", width="stretch", key=f"ed_rec_{mid}")
+    up = uploader(t("Recovery data (level, A_unspiked, A_spiked, C_added)"), f"rec_{mid}")
+    base_r = source(up, load_csv(demo["recovery"]) if demo and "recovery" in demo else None,
+                    {"level": str, "A_unspiked": float, "A_spiked": float, "C_added": float})
+    rec = table(f"rec_{mid}", base_r, use_demo, up)
     if {"A_unspiked", "A_spiked", "C_added"} <= set(rec.columns) and len(rec.dropna()):
         r_in = rec.copy()
         for c in ("A_unspiked", "A_spiked"):
@@ -750,6 +945,9 @@ with t_rep:
     c3.download_button(t("⬇️ Residuals CSV"), points_table(res).to_csv(index=False), "residuals.csv", "text/csv")
     st.caption(t("The HTML report includes tables, interpretation, method references and interactive plots; "
                  "it can be printed to PDF from the browser."))
+
+with t_conc:
+    show_concepts()
 
 with t_meth:
     show_method_tab(method, variant, standard)

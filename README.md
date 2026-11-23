@@ -33,6 +33,9 @@ methods, proteins, etc.), with full statistics computed in **R** and plots made 
 | **Plots** | Curve with confidence and prediction bands, LOD/LOQ and samples; diagnostics panel (residuals, Q-Q, Cook) |
 | **Libraries** | Plotly (interactive), Matplotlib + Seaborn, plain Matplotlib, Altair — 300 dpi PNG for publications |
 | **Export** | HTML report with interpretation, JSON results and residuals CSV |
+| **Step-by-step calculation** | For each sample, every formula written out with its own numbers (blank correction, mean, C₀ = (Ā₀ − a)/b, uncertainty, confidence interval, content), as if done by hand, and checked against the R engine |
+| **Concepts** | Built-in glossary: what each quantity means (absorbance, slope, R², s(y/x), residuals, LOD/LOQ, p-values, confidence bands, equivalents, recovery…) and how to interpret it |
+| **Your data is kept** | Tables and settings survive switching language, method, variant or tab during the session |
 | **Interface language** | English or **Spanish** (selector at the top of the sidebar; the choice is remembered) |
 | **Laboratory protocols** | Total phenolics (Folin-Ciocalteu/NaOH, 760 nm), flavonoids (NaNO₂–AlCl₃–NaOH, 500 nm) and tannins by casein precipitation (TP − RP), with their calibration levels and procedure ([docs/METHODS.md](docs/METHODS.md)) |
 | **Method presets** | Folin-Ciocalteu (total phenolics), AlCl₃ (flavonoids), vanillin-HCl (condensed tannins), bromocresol green (alkaloids), vanillin-H₂SO₄ (saponins), pH differential (anthocyanins, AOAC 2005.02) — each with its variants, standards, warnings and references ([docs/METHODS.md](docs/METHODS.md)) |
@@ -147,7 +150,8 @@ python -m venv .venv
    the columns are `A_TP` and `A_RP`.
 4. In the sidebar, set the unit, path length, molar mass, confidence level and
    plotting library.
-5. Check **Statistics** → **Plots** → **Samples** and download the **Report**.
+5. Check **Statistics** → **Plots** → **Samples**, follow any sample in **Step-by-step
+   calculation**, look up terms in **Concepts**, and download the **Report**.
 
 The app is **not tied to any specific method**: enter the analyte, wavelength, units
 and molar mass of your own assay. Synthetic demo data is included in [`data/`](data/)
@@ -181,6 +185,8 @@ Lambert-Beer-Content-Calculator/
 │   ├── interpretation.py         Plain-language interpretation of assumptions
 │   ├── methods.json / methods.py Method presets with references
 │   ├── analysis.py               Blank, content, tannins by difference, LOD basis, standard addition, validation
+│   ├── handcalc.py               Step-by-step ("by hand") calculation of each sample
+│   ├── concepts.py               Glossary / how to interpret (English and Spanish)
 │   ├── i18n.py / lang_es.py      Interface language (English / Spanish)
 │   ├── ph_differential.py        Anthocyanins by pH differential (no curve)
 │   ├── plots.py                  Matplotlib, Seaborn, Plotly, Altair
