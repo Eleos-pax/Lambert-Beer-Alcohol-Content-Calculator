@@ -1,4 +1,4 @@
-# CalibraUV - dependencias de Python (3.10 o superior)
+# CalibraUV - Python dependencies (3.10 or newer)
 streamlit>=1.45
 numpy>=1.26
 pandas>=2.1

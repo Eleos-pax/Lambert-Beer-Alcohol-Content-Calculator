@@ -1,25 +1,25 @@
 #!/usr/bin/env Rscript
 # =============================================================================
-#  CalibraUV - Motor estadístico en R
-#  Curva de calibración por espectroscopía UV-Vis (ley de Lambert-Beer)
+#  CalibraUV - Statistical engine in R
+#  UV-Vis spectroscopy calibration curve (Beer-Lambert law)
 #
-#  Solo usa R base + el paquete 'stats' (incluido en toda instalación de R),
-#  así funciona igual en Windows y en Linux sin instalar paquetes adicionales.
+#  Uses only base R + the 'stats' package (shipped with every R installation),
+#  so it runs the same on Windows and Linux without installing extra packages.
 #
-#  Uso desde la terminal:
-#    Rscript calibracion.R --data=estandares.csv [--unknowns=muestras.csv]
+#  Command-line usage:
+#    Rscript calibration.R --data=standards.csv [--unknowns=samples.csv]
 #            [--conf=0.95] [--origin=0] [--path=1] [--grid=100] [--out=res.json]
 #
-#  estandares.csv : las dos primeras columnas numéricas = concentración, absorbancia
-#  muestras.csv   : columnas 'muestra' y 'absorbancia' (réplicas = filas repetidas)
+#  standards.csv : first two numeric columns = concentration, absorbance
+#  samples.csv   : columns 'sample' and 'absorbance' (replicates = repeated rows)
 #
-#  Licencia: MIT. Diseñado en su mayoría con apoyo de Claude (Anthropic),
-#  revisado por humanos. Ver POLITICA_USO_RESPONSABLE_IA.md
+#  License: MIT. Designed mostly with the help of Claude (Anthropic) and
+#  reviewed by humans. See RESPONSIBLE_AI_POLICY.md
 # =============================================================================
 
 suppressWarnings(suppressMessages(library(stats)))
 
-# ---------------------------------------------------------------- argumentos --
+# ------------------------------------------------------------------ arguments --
 parse_args <- function(args) {
   opts <- list()
   for (a in args) {
@@ -36,9 +36,9 @@ parse_args <- function(args) {
 
 opt <- function(opts, key, default) if (is.null(opts[[key]])) default else opts[[key]]
 
-# ------------------------------------------------- serializador JSON (ASCII) --
-# Escapamos todo carácter no ASCII como \uXXXX para que la salida sea idéntica
-# en Windows (codificación nativa CP-1252) y en Linux (UTF-8).
+# --------------------------------------------------------- JSON writer (ASCII) --
+# Every non-ASCII character is escaped as \uXXXX so the output is identical on
+# Windows (native CP-1252 encoding) and Linux (UTF-8).
 json_str <- function(s) {
   vapply(enc2utf8(as.character(s)), function(one) {
     if (is.na(one)) return("null")
@@ -59,7 +59,7 @@ json_str <- function(s) {
   }, "", USE.NAMES = FALSE)
 }
 
-arr <- function(v) structure(v, json_array = TRUE)  # fuerza arreglo JSON
+arr <- function(v) structure(v, json_array = TRUE)  # force a JSON array
 
 to_json <- function(x) {
   if (is.null(x)) return("null")
@@ -90,35 +90,35 @@ fail <- function(msg) {
   quit(status = 2, save = "no")
 }
 
-# --------------------------------------------------------------------- datos --
+# ----------------------------------------------------------------------- data --
 opts   <- parse_args(commandArgs(trailingOnly = TRUE))
 f_data <- opt(opts, "data", NULL)
-if (is.null(f_data)) fail("Falta el argumento --data=archivo.csv")
+if (is.null(f_data)) fail("Missing argument --data=file.csv")
 conf   <- as.numeric(opt(opts, "conf", "0.95"))
-origin <- opt(opts, "origin", "0") %in% c("1", "TRUE", "true", "si")
+origin <- opt(opts, "origin", "0") %in% c("1", "TRUE", "true", "yes")
 path_l <- as.numeric(opt(opts, "path", "1"))
 n_grid <- as.integer(opt(opts, "grid", "100"))
 
 df <- tryCatch(read.csv(f_data, fileEncoding = "UTF-8", check.names = FALSE),
-               error = function(e) fail(paste("No se pudo leer el CSV:", conditionMessage(e))))
+               error = function(e) fail(paste("Could not read the CSV:", conditionMessage(e))))
 num_cols <- which(vapply(df, is.numeric, TRUE))
-if (length(num_cols) < 2) fail("El CSV necesita al menos dos columnas numéricas (concentración, absorbancia)")
+if (length(num_cols) < 2) fail("The CSV needs at least two numeric columns (concentration, absorbance)")
 x <- df[[num_cols[1]]]
 y <- df[[num_cols[2]]]
 ok <- is.finite(x) & is.finite(y)
 x <- x[ok]; y <- y[ok]
 n <- length(x)
-if (n < 3) fail("Se necesitan al menos 3 estándares válidos")
-if (length(unique(x)) < 2) fail("Se necesitan al menos 2 concentraciones distintas")
+if (n < 3) fail("At least 3 valid standards are required")
+if (length(unique(x)) < 2) fail("At least 2 different concentrations are required")
 
-# ----------------------------------------------------------------- regresión --
+# ----------------------------------------------------------------- regression --
 fit <- if (origin) lm(y ~ 0 + x) else lm(y ~ x)
 sm  <- summary(fit)
 co  <- coef(sm)
 ci  <- confint(fit, level = conf)
 p   <- length(coef(fit))
 df_res <- n - p
-if (df_res < 1) fail("Grados de libertad insuficientes: agregue más estándares")
+if (df_res < 1) fail("Not enough degrees of freedom: add more standards")
 
 coef_row <- function(name) list(
   estimate = co[name, 1], se = co[name, 2], t = co[name, 3], p = co[name, 4],
@@ -136,19 +136,19 @@ anova_out <- list(
   df_res = an$Df[2], ss_res = an$`Sum Sq`[2], ms_res = an$`Mean Sq`[2],
   f = an$`F value`[1], p = an$`Pr(>F)`[1])
 
-# --------------------------------------------------------------- diagnóstico --
+# ---------------------------------------------------------------- diagnostics --
 e <- residuals(fit)
 shap <- tryCatch(shapiro.test(e), error = function(err) NULL)
 dw <- sum(diff(e)^2) / sum(e^2)
 
-# Breusch-Pagan studentizado (Koenker): n * R^2 de e^2 ~ x
+# Studentized Breusch-Pagan (Koenker): n * R^2 of e^2 ~ x
 bp <- tryCatch({
   aux <- summary(lm(I(e^2) ~ x))
   stat <- n * aux$r.squared
   list(stat = stat, p = pchisq(stat, df = 1, lower.tail = FALSE))
 }, error = function(err) list(stat = NA, p = NA))
 
-# Falta de ajuste (requiere réplicas)
+# Lack of fit (requires replicates)
 lof <- NULL
 groups <- split(y, x)
 k <- length(groups)
@@ -162,17 +162,17 @@ if (df_pe > 0 && df_lof > 0) {
               f = f_lof, p = pf(f_lof, df_lof, df_pe, lower.tail = FALSE))
 }
 
-# ------------------------------------------------------------ bandas (grid) --
+# ------------------------------------------------------------- bands (grid) --
 gx <- seq(min(0, min(x)), max(x) * 1.05, length.out = n_grid)
 pc <- predict(fit, newdata = data.frame(x = gx), interval = "confidence", level = conf)
 pp <- predict(fit, newdata = data.frame(x = gx), interval = "prediction", level = conf)
 
-# --------------------------------------------- límites y absortividad molar --
+# --------------------------------------------- limits and molar absorptivity --
 lod <- 3.3 * s_yx / b
 loq <- 10  * s_yx / b
 tval <- qt(1 - (1 - conf) / 2, df_res)
 
-# ------------------------------------------------- muestras desconocidas -----
+# ----------------------------------------------------------- unknown samples --
 unknowns <- list()
 f_unk <- opt(opts, "unknowns", NULL)
 if (!is.null(f_unk) && file.exists(f_unk)) {
@@ -180,12 +180,13 @@ if (!is.null(f_unk) && file.exists(f_unk)) {
                  stringsAsFactors = FALSE)
   if (nrow(du) > 0) {
     names(du) <- tolower(names(du))
-    if (!"muestra" %in% names(du)) du$muestra <- paste0("M", seq_len(nrow(du)))
-    ycol <- if ("absorbancia" %in% names(du)) "absorbancia" else
-      names(du)[which(vapply(du, is.numeric, TRUE))[1]]
+    scol <- intersect(c("sample", "muestra"), names(du))[1]
+    if (is.na(scol)) { du$sample <- paste0("S", seq_len(nrow(du))); scol <- "sample" }
+    ycol <- intersect(c("absorbance", "absorbancia"), names(du))[1]
+    if (is.na(ycol)) ycol <- names(du)[which(vapply(du, is.numeric, TRUE))[1]]
     du <- du[is.finite(du[[ycol]]), ]
-    for (nm in unique(du$muestra)) {
-      yy <- du[[ycol]][du$muestra == nm]
+    for (nm in unique(du[[scol]])) {
+      yy <- du[[ycol]][du[[scol]] == nm]
       m  <- length(yy)
       y0 <- mean(yy)
       x0 <- (y0 - a) / b
@@ -205,7 +206,7 @@ if (!is.null(f_unk) && file.exists(f_unk)) {
   }
 }
 
-# ------------------------------------------------------------------- salida --
+# --------------------------------------------------------------------- output --
 res <- list(
   engine = paste0("R ", R.version$major, ".", R.version$minor, " (stats::lm)"),
   n = n, p = p, df_resid = df_res, conf_level = conf, origin = origin,

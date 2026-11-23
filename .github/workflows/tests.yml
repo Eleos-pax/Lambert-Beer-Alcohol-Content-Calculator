@@ -1,11 +1,11 @@
-name: Pruebas
+name: Tests
 
 on:
   push:
   pull_request:
 
 jobs:
-  pruebas:
+  tests:
     name: ${{ matrix.os }} / Python ${{ matrix.python }}
     runs-on: ${{ matrix.os }}
     strategy:
@@ -21,9 +21,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
-      - name: Instalar dependencias
+      - name: Install dependencies
         run: python -m pip install -r requirements-dev.txt
-      - name: Motor R por línea de comandos
-        run: Rscript r/calibracion.R --data=datos/ejemplo_calibracion_hierro.csv --grid=5
-      - name: Pruebas (R vs Python)
+      - name: R engine from the command line
+        run: Rscript r/calibration.R --data=data/example_iron_calibration.csv --grid=5
+      - name: Tests (R vs Python)
         run: python -m pytest -v

@@ -1,18 +1,19 @@
-# Cómo contribuir a CalibraUV
+# Contributing to CalibraUV
 
-¡Gracias por su interés! Algunas pautas:
+Thank you for your interest! A few guidelines:
 
-1. **Abra un issue** antes de cambios grandes para discutir la idea.
-2. **Cálculos:** cualquier cambio estadístico debe implementarse **en ambos motores**
-   (`r/calibracion.R` y `calibrauv/motor_python.py`), con la misma clave en el JSON de
-   salida, una prueba en `tests/` y la fórmula con su referencia en `docs/TEORIA.md`.
-3. **Compatibilidad:** el script de R debe seguir usando solo R base + `stats`. El código
-   debe funcionar en Windows y Linux (use `pathlib`, no rutas fijas).
-4. **Pruebas:** `python -m pytest -v` debe pasar (incluye la comparación R vs Python).
-5. **Uso de IA:** está permitido; declárelo en el pull request y asegúrese de entender
-   cada línea. Ver [POLITICA_USO_RESPONSABLE_IA.md](POLITICA_USO_RESPONSABLE_IA.md).
-6. **Idioma:** la interfaz y la documentación están en español.
+1. **Open an issue** before large changes to discuss the idea.
+2. **Computations:** any statistical change must be implemented **in both engines**
+   (`r/calibration.R` and `calibrauv/engine_python.py`), with the same key in the
+   JSON output, a test in `tests/`, and the formula with its reference in
+   `docs/THEORY.md`.
+3. **Compatibility:** the R script must keep using only base R + `stats`. The code
+   must work on Windows and Linux (use `pathlib`, no hard-coded paths).
+4. **Tests:** `python -m pytest -v` must pass (it includes the R vs Python comparison).
+5. **AI use:** allowed; declare it in the pull request and make sure you understand
+   every line. See [RESPONSIBLE_AI_POLICY.md](RESPONSIBLE_AI_POLICY.md).
+6. **Language:** the interface and documentation are in English.
 
-Ideas pendientes: regresión ponderada (1/x, 1/x²), prueba de Mandel para linealidad,
-adición estándar, LOD a partir de blancos, importación directa de archivos de
-espectrofotómetros y traducción al inglés.
+Open ideas: weighted regression (1/x, 1/x²), Mandel's linearity test, standard
+addition, LOD from blanks, direct import of spectrophotometer files, and
+translations (e.g. Spanish).

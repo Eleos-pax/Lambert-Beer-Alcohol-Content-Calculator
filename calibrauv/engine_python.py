@@ -1,8 +1,8 @@
-"""Motor estadístico de respaldo en Python (NumPy/SciPy).
+"""Fallback statistical engine in Python (NumPy/SciPy).
 
-Reproduce exactamente las mismas fórmulas que r/calibracion.R. Sirve:
-  * cuando R no está instalado, y
-  * como verificación cruzada (las pruebas comparan ambos motores).
+Reproduces exactly the same formulas as r/calibration.R. It is used:
+  * when R is not installed, and
+  * as a cross-check (the tests compare both engines).
 """
 
 from __future__ import annotations
@@ -21,28 +21,28 @@ def _coef(est, se, df, tval):
             "ci_low": est - tval * se, "ci_high": est + tval * se}
 
 
-def calcular_python(estandares: pd.DataFrame, muestras: pd.DataFrame | None = None,
-                    conf: float = 0.95, origen: bool = False, paso_optico: float = 1.0,
-                    n_grid: int = 100) -> dict:
-    datos = estandares.iloc[:, :2].apply(pd.to_numeric, errors="coerce").dropna()
-    x = datos.iloc[:, 0].to_numpy(float)
-    y = datos.iloc[:, 1].to_numpy(float)
+def compute_python(standards: pd.DataFrame, samples: pd.DataFrame | None = None,
+                   conf: float = 0.95, origin: bool = False, path_length: float = 1.0,
+                   n_grid: int = 100) -> dict:
+    data = standards.iloc[:, :2].apply(pd.to_numeric, errors="coerce").dropna()
+    x = data.iloc[:, 0].to_numpy(float)
+    y = data.iloc[:, 1].to_numpy(float)
     n = len(x)
     if n < 3:
-        raise ValueError("Se necesitan al menos 3 estándares válidos")
+        raise ValueError("At least 3 valid standards are required")
     if len(np.unique(x)) < 2:
-        raise ValueError("Se necesitan al menos 2 concentraciones distintas")
+        raise ValueError("At least 2 different concentrations are required")
 
-    p = 1 if origen else 2
+    p = 1 if origin else 2
     df_res = n - p
     if df_res < 1:
-        raise ValueError("Grados de libertad insuficientes: agregue más estándares")
+        raise ValueError("Not enough degrees of freedom: add more standards")
     x_mean, y_mean = x.mean(), y.mean()
     sxx = np.sum((x - x_mean) ** 2)
     sx2 = np.sum(x ** 2)
     tval = stats.t.ppf(1 - (1 - conf) / 2, df_res)
 
-    if origen:
+    if origin:
         b = np.sum(x * y) / sx2
         a = 0.0
     else:
@@ -53,21 +53,21 @@ def calcular_python(estandares: pd.DataFrame, muestras: pd.DataFrame | None = No
     ss_res = np.sum(e ** 2)
     s_yx = np.sqrt(ss_res / df_res)
 
-    if origen:
+    if origin:
         se_b = s_yx / np.sqrt(sx2)
-        ss_tot = np.sum(y ** 2)              # R²  no centrado (igual que R)
+        ss_tot = np.sum(y ** 2)              # uncentered R² (same as R)
         lev = x ** 2 / sx2
-        intercepto = None
+        intercept = None
     else:
         se_b = s_yx / np.sqrt(sxx)
         se_a = s_yx * np.sqrt(sx2 / (n * sxx))
         ss_tot = np.sum((y - y_mean) ** 2)
         lev = 1 / n + (x - x_mean) ** 2 / sxx
-        intercepto = _coef(a, se_a, df_res, tval)
+        intercept = _coef(a, se_a, df_res, tval)
 
     ss_reg = ss_tot - ss_res
     r2 = 1 - ss_res / ss_tot
-    df_tot = n if origen else n - 1
+    df_tot = n if origin else n - 1
     r2_adj = 1 - (1 - r2) * df_tot / df_res
     f_stat = (ss_reg / 1) / (ss_res / df_res)
     f_p = stats.f.sf(f_stat, 1, df_res)
@@ -75,7 +75,7 @@ def calcular_python(estandares: pd.DataFrame, muestras: pd.DataFrame | None = No
     std_res = e / (s_yx * np.sqrt(1 - lev))
     cooks = std_res ** 2 * lev / (p * (1 - lev))
 
-    # Diagnósticos
+    # Diagnostics
     try:
         sw = stats.shapiro(e)
         sh_w, sh_p = float(sw.statistic), float(sw.pvalue)
@@ -88,20 +88,20 @@ def calcular_python(estandares: pd.DataFrame, muestras: pd.DataFrame | None = No
     bp_p = stats.chi2.sf(bp_stat, 1)
 
     lof = None
-    grupos = pd.Series(y).groupby(x)
-    k = grupos.ngroups
+    groups = pd.Series(y).groupby(x)
+    k = groups.ngroups
     df_pe, df_lof = n - k, k - p
     if df_pe > 0 and df_lof > 0:
-        ss_pe = float(grupos.apply(lambda g: np.sum((g - g.mean()) ** 2)).sum())
+        ss_pe = float(groups.apply(lambda g: np.sum((g - g.mean()) ** 2)).sum())
         ss_lof = ss_res - ss_pe
         f_lof = (ss_lof / df_lof) / (ss_pe / df_pe)
         lof = {"ss_lof": ss_lof, "df_lof": df_lof, "ss_pe": ss_pe, "df_pe": df_pe,
                "f": f_lof, "p": stats.f.sf(f_lof, df_lof, df_pe)}
 
-    # Bandas de confianza y predicción
+    # Confidence and prediction bands
     gx = np.linspace(min(0.0, x.min()), x.max() * 1.05, n_grid)
     gfit = a + b * gx
-    if origen:
+    if origin:
         h = gx ** 2 / sx2
     else:
         h = 1 / n + (gx - x_mean) ** 2 / sxx
@@ -110,22 +110,22 @@ def calcular_python(estandares: pd.DataFrame, muestras: pd.DataFrame | None = No
 
     lod, loq = 3.3 * s_yx / b, 10 * s_yx / b
 
-    desconocidas = []
-    if muestras is not None and len(muestras) > 0:
-        mu = muestras.copy()
-        mu["absorbancia"] = pd.to_numeric(mu["absorbancia"], errors="coerce")
-        mu = mu.dropna(subset=["absorbancia"])
-        for nombre, g in mu.groupby("muestra", sort=False):
-            yy = g["absorbancia"].to_numpy(float)
+    unknowns = []
+    if samples is not None and len(samples) > 0:
+        mu = samples.copy()
+        mu["absorbance"] = pd.to_numeric(mu["absorbance"], errors="coerce")
+        mu = mu.dropna(subset=["absorbance"])
+        for name, g in mu.groupby("sample", sort=False):
+            yy = g["absorbance"].to_numpy(float)
             m = len(yy)
             y0 = yy.mean()
             x0 = (y0 - a) / b
-            if origen:
+            if origin:
                 sx0 = s_yx / abs(b) * np.sqrt(1 / m + y0 ** 2 / (b ** 2 * sx2))
             else:
                 sx0 = s_yx / abs(b) * np.sqrt(1 / m + 1 / n + (y0 - y_mean) ** 2 / (b ** 2 * sxx))
-            desconocidas.append({
-                "sample": str(nombre), "m": m, "y_mean": y0,
+            unknowns.append({
+                "sample": str(name), "m": m, "y_mean": y0,
                 "y_sd": float(np.std(yy, ddof=1)) if m > 1 else None,
                 "x0": x0, "s_x0": sx0, "ci_low": x0 - tval * sx0, "ci_high": x0 + tval * sx0,
                 "rsd_pct": 100 * sx0 / abs(x0) if x0 != 0 else None,
@@ -137,16 +137,16 @@ def calcular_python(estandares: pd.DataFrame, muestras: pd.DataFrame | None = No
 
     return {
         "engine": f"Python {platform.python_version()} (NumPy/SciPy)",
-        "n": n, "p": p, "df_resid": df_res, "conf_level": conf, "origin": origen,
+        "n": n, "p": p, "df_resid": df_res, "conf_level": conf, "origin": origin,
         "t_crit": tval,
-        "coefficients": {"slope": _coef(b, se_b, df_res, tval), "intercept": intercepto},
+        "coefficients": {"slope": _coef(b, se_b, df_res, tval), "intercept": intercept},
         "r": float(np.corrcoef(x, y)[0, 1]), "r_squared": r2, "adj_r_squared": r2_adj,
         "s_yx": s_yx, "f_stat": f_stat, "f_p": f_p,
         "anova": {"df_reg": 1, "ss_reg": ss_reg, "ms_reg": ss_reg,
                   "df_res": df_res, "ss_res": ss_res, "ms_res": ss_res / df_res,
                   "f": f_stat, "p": f_p},
-        "lod": lod, "loq": loq, "path_length": paso_optico,
-        "absorptivity": b / paso_optico, "slope_rsd_pct": 100 * se_b / abs(b),
+        "lod": lod, "loq": loq, "path_length": path_length,
+        "absorptivity": b / path_length, "slope_rsd_pct": 100 * se_b / abs(b),
         "x_mean": x_mean, "y_mean": y_mean, "sxx": sxx,
         "x_min": float(x.min()), "x_max": float(x.max()),
         "diagnostics": {"shapiro_w": sh_w, "shapiro_p": sh_p, "durbin_watson": dw,
@@ -156,5 +156,5 @@ def calcular_python(estandares: pd.DataFrame, muestras: pd.DataFrame | None = No
         "band": {"x": lst(gx), "fit": lst(gfit),
                  "conf_low": lst(gfit - hc), "conf_high": lst(gfit + hc),
                  "pred_low": lst(gfit - hp), "pred_high": lst(gfit + hp)},
-        "unknowns": desconocidas,
+        "unknowns": unknowns,
     }

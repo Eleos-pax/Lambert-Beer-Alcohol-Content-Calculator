@@ -1,41 +1,41 @@
-"""CalibraUV — interfaz gráfica (Streamlit).
+"""CalibraUV — graphical interface (Streamlit).
 
-Ejecutar:  streamlit run app.py
+Run:  streamlit run app.py
 """
 
 from __future__ import annotations
 
 import json
+from io import StringIO
 from pathlib import Path
 
 import pandas as pd
 import streamlit as st
 
 from calibrauv import __version__
-from calibrauv import graficos as G
-from calibrauv.interpretacion import advertencias_muestras, evaluar
-from calibrauv.motor import UNIDADES, absortividad_molar, calcular, motores_disponibles
-from calibrauv.reporte import (AVISO_IA, reporte_html, tabla_anova, tabla_coeficientes,
-                               tabla_muestras, tabla_puntos, tabla_resumen)
+from calibrauv import plots as P
+from calibrauv.engine import UNITS, available_engines, compute, molar_absorptivity
+from calibrauv.interpretation import evaluate, sample_warnings
+from calibrauv.report import (AI_NOTICE, anova_table, coefficients_table, html_report,
+                              points_table, samples_table, summary_table)
 
-RAIZ = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parent
 st.set_page_config(page_title="CalibraUV", page_icon="🧪", layout="wide")
 
 
 @st.cache_data
-def ejemplo():
-    return (pd.read_csv(RAIZ / "datos" / "ejemplo_calibracion_hierro.csv"),
-            pd.read_csv(RAIZ / "datos" / "ejemplo_muestras.csv"))
+def example():
+    return (pd.read_csv(ROOT / "data" / "example_iron_calibration.csv"),
+            pd.read_csv(ROOT / "data" / "example_samples.csv"))
 
 
-def leer_archivo(f) -> pd.DataFrame:
+def read_file(f) -> pd.DataFrame:
     if f.name.lower().endswith((".xlsx", ".xls")):
         return pd.read_excel(f)
-    contenido = f.getvalue().decode("utf-8-sig", errors="replace")
-    sep = ";" if contenido.count(";") > contenido.count(",") else ","
-    from io import StringIO
-    df = pd.read_csv(StringIO(contenido), sep=sep)
-    if sep == ";":  # formato regional con coma decimal (Excel en español)
+    content = f.getvalue().decode("utf-8-sig", errors="replace")
+    sep = ";" if content.count(";") > content.count(",") else ","
+    df = pd.read_csv(StringIO(content), sep=sep)
+    if sep == ";":  # regional format with decimal comma (e.g. European Excel)
         for col in df.columns:
             conv = pd.to_numeric(df[col].astype(str).str.replace(",", "."), errors="coerce")
             if conv.notna().all():
@@ -43,175 +43,212 @@ def leer_archivo(f) -> pd.DataFrame:
     return df
 
 
-# --------------------------------------------------------------- barra lateral
-disp = motores_disponibles()
+def normalize_samples(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.copy()
+    df.columns = [str(c).lower().strip() for c in df.columns]
+    df = df.rename(columns={"muestra": "sample", "absorbancia": "absorbance"})
+    if "sample" not in df.columns:
+        df.insert(0, "sample", [f"S{i + 1}" for i in range(len(df))])
+    if "absorbance" not in df.columns:
+        num = df.select_dtypes("number").columns
+        df["absorbance"] = df[num[0]] if len(num) else pd.NA
+    return df[["sample", "absorbance"]]
+
+
+# ------------------------------------------------------------------ sidebar
+engines = available_engines()
 with st.sidebar:
     st.title("🧪 CalibraUV")
-    st.caption(f"v{__version__} · Curva de calibración UV-Vis · Ley de Lambert-Beer")
+    st.caption(f"v{__version__} · UV-Vis calibration curve · Beer-Lambert law")
 
-    st.subheader("Método")
-    analito = st.text_input("Analito", "Fe(II)–o-fenantrolina")
-    lam = st.number_input("Longitud de onda λ (nm)", 190.0, 1100.0, 510.0, 1.0)
-    unidad = st.selectbox("Unidad de concentración", list(UNIDADES), index=3)
-    masa_molar = None
-    if UNIDADES[unidad] is None:
-        masa_molar = st.number_input("Masa molar (g/mol) para ε", 0.0, 1e6, 55.845, 0.001,
-                                     format="%.3f", help="0 = no calcular ε molar")
-    paso = st.number_input("Paso óptico l (cm)", 0.01, 10.0, 1.0, 0.1)
+    st.subheader("Method")
+    st.caption("Works for any analyte that follows the Beer-Lambert law.")
+    use_demo = st.checkbox("Load demo data", True,
+                           help="Demo only: Fe(II)–o-phenanthroline at 510 nm, in triplicate. "
+                                "Untick it to start with an empty table and enter your own data.")
+    analyte = st.text_input("Analyte", "Demo: Fe(II)–o-phenanthroline" if use_demo else "",
+                            placeholder="e.g. KMnO₄, ethanol, Fe(II), caffeine…")
+    wavelength = st.number_input("Wavelength λ (nm)", 190.0, 1100.0,
+                                 510.0 if use_demo else None, 1.0, placeholder="optional")
+    unit = st.selectbox("Concentration unit", list(UNITS), index=3 if use_demo else 0)
+    molar_mass = None
+    if UNITS[unit] is None:
+        molar_mass = st.number_input("Molar mass (g/mol) for ε", 0.0, 1e6,
+                                     55.845 if use_demo else 0.0, 0.001, format="%.3f",
+                                     help="0 = do not compute molar ε")
+    path_length = st.number_input("Path length l (cm)", 0.01, 10.0, 1.0, 0.1)
 
-    st.subheader("Estadística")
-    conf = st.select_slider("Nivel de confianza", [0.90, 0.95, 0.99], 0.95,
+    st.subheader("Statistics")
+    conf = st.select_slider("Confidence level", [0.90, 0.95, 0.99], 0.95,
                             format_func=lambda v: f"{v:.0%}")
-    origen = st.checkbox("Forzar por el origen (A = b·C)", False,
-                         help="Solo si el intercepto no es significativo y el blanco está corregido.")
-    opciones_motor = ["auto", "R", "Python"] if disp["R"] else ["Python"]
-    motor = st.selectbox("Motor de cálculo", opciones_motor,
-                         help="R (stats::lm) es el motor de referencia; Python es el respaldo.")
-    if not disp["R"]:
-        st.warning("R no encontrado: se usará Python. Instale R para usar stats::lm.")
+    origin = st.checkbox("Force through the origin (A = b·C)", False,
+                         help="Only if the intercept is not significant and the blank is corrected.")
+    engine_options = ["auto", "R", "Python"] if engines["R"] else ["Python"]
+    engine = st.selectbox("Computation engine", engine_options,
+                          help="R (stats::lm) is the reference engine; Python is the fallback.")
+    if not engines["R"]:
+        st.warning("R not found: Python will be used. Install R to use stats::lm.")
 
-    st.subheader("Gráficos")
-    lib = st.radio("Biblioteca", ["Plotly (interactivo)", "Matplotlib + Seaborn", "Matplotlib",
-                                  "Altair"], index=0)
-    estilo = st.selectbox("Estilo Seaborn", ["whitegrid", "darkgrid", "ticks", "white"],
-                          disabled=lib != "Matplotlib + Seaborn")
+    st.subheader("Plots")
+    lib = st.radio("Library", ["Plotly (interactive)", "Matplotlib + Seaborn", "Matplotlib",
+                               "Altair"], index=0)
+    style = st.selectbox("Seaborn style", ["whitegrid", "darkgrid", "ticks", "white"],
+                         disabled=lib != "Matplotlib + Seaborn")
     st.divider()
-    st.caption("🤖 " + AVISO_IA)
+    st.caption("🤖 " + AI_NOTICE)
 
-xlab = f"Concentración ({unidad})"
+xlab = f"Concentration ({unit})"
 
-# ----------------------------------------------------------------- datos
-st.header("Curva de calibración UV-Vis")
-st.markdown(r"Ley de Lambert-Beer: $A = \varepsilon \, l \, c$ → regresión lineal "
-            r"$A = a + b\,C$, donde $b = \varepsilon l$ es la sensibilidad.")
+# -------------------------------------------------------------------- data
+st.header("UV-Vis calibration curve")
+st.markdown(r"Beer-Lambert law: $A = \varepsilon \, l \, c$ → linear regression "
+            r"$A = a + b\,C$, where $b = \varepsilon l$ is the sensitivity.")
 
-tab_datos, tab_res, tab_graf, tab_muest, tab_rep, tab_ia = st.tabs(
-    ["📋 Datos", "📊 Estadísticos", "📈 Gráficos", "🧫 Muestras", "📄 Reporte", "🤖 IA y licencia"])
+tab_data, tab_stats, tab_plots, tab_samples, tab_report, tab_ai = st.tabs(
+    ["📋 Data", "📊 Statistics", "📈 Plots", "🧫 Samples", "📄 Report", "🤖 AI & license"])
 
-std_ej, unk_ej = ejemplo()
-with tab_datos:
+std_ex, unk_ex = example()
+with tab_data:
     c1, c2 = st.columns(2)
     with c1:
-        st.subheader("Estándares")
-        f = st.file_uploader("CSV o Excel (columna 1: concentración, columna 2: absorbancia)",
+        st.subheader("Standards")
+        f = st.file_uploader("CSV or Excel (column 1: concentration, column 2: absorbance)",
                              type=["csv", "xlsx", "xls"], key="f_std")
-        base = leer_archivo(f) if f else std_ej
+        if f:
+            base = read_file(f)
+        elif use_demo:
+            base = std_ex
+        else:
+            base = pd.DataFrame({"c": pd.Series(dtype=float), "A": pd.Series(dtype=float)})
         base = base.iloc[:, :2].copy()
-        base.columns = ["Concentración", "Absorbancia"]
-        estandares = st.data_editor(base, num_rows="dynamic", width="stretch", key="ed_std")
+        base.columns = ["Concentration", "Absorbance"]
+        standards = st.data_editor(base, num_rows="dynamic", width="stretch", key="ed_std")
     with c2:
-        st.subheader("Muestras problema (opcional)")
-        f2 = st.file_uploader("CSV o Excel con columnas: muestra, absorbancia (réplicas en filas)",
+        st.subheader("Unknown samples (optional)")
+        f2 = st.file_uploader("CSV or Excel with columns: sample, absorbance (replicates as rows)",
                               type=["csv", "xlsx", "xls"], key="f_unk")
-        base_u = leer_archivo(f2) if f2 else unk_ej
-        base_u.columns = [c.lower().strip() for c in base_u.columns]
-        muestras = st.data_editor(base_u[["muestra", "absorbancia"]], num_rows="dynamic",
-                                  width="stretch", key="ed_unk")
-    st.info("Consejo: mida cada estándar por triplicado para poder evaluar la falta de ajuste, "
-            "y mantenga las absorbancias entre ~0.1 y 1.0.")
+        if f2:
+            base_u = normalize_samples(read_file(f2))
+        elif use_demo:
+            base_u = normalize_samples(unk_ex)
+        else:
+            base_u = pd.DataFrame({"sample": pd.Series(dtype=str),
+                                   "absorbance": pd.Series(dtype=float)})
+        samples = st.data_editor(base_u, num_rows="dynamic", width="stretch", key="ed_unk")
+    st.info("Tip: measure each standard in triplicate so lack of fit can be evaluated, "
+            "and keep absorbances between ~0.1 and 1.0.")
 
-# -------------------------------------------------------------- cálculo
+# ------------------------------------------------------------- computation
+if len(standards.dropna()) < 3:
+    st.info("Enter at least 3 standards (concentration, absorbance) in the Data tab, "
+            "or upload a CSV/Excel file.")
+    st.stop()
+title = " · ".join(t for t in (analyte.strip(), f"λ = {wavelength:.0f} nm" if wavelength else "")
+                   if t) or None
 try:
-    res = calcular(estandares.dropna(), muestras.dropna(), motor=motor, conf=conf,
-                   origen=origen, paso_optico=paso)
+    res = compute(standards.dropna(), samples.dropna(), engine=engine, conf=conf,
+                  origin=origin, path_length=path_length)
 except Exception as exc:  # noqa: BLE001
-    st.error(f"No se pudo calcular la regresión: {exc}")
+    st.error(f"The regression could not be computed: {exc}")
     st.stop()
 
 if res.get("engine_note"):
     st.warning(res["engine_note"])
-eps = absortividad_molar(res, unidad, masa_molar)
+eps = molar_absorptivity(res, unit, molar_mass)
 
-with tab_res:
+with tab_stats:
     m1, m2, m3, m4, m5 = st.columns(5)
     m1.metric("R²", f"{res['r_squared']:.5f}")
-    m2.metric("Pendiente b", f"{res['coefficients']['slope']['estimate']:.5g}")
+    m2.metric("Slope b", f"{res['coefficients']['slope']['estimate']:.5g}")
     m3.metric("s(y/x)", f"{res['s_yx']:.3g}")
-    m4.metric(f"LOD ({unidad})", f"{res['lod']:.3g}")
-    m5.metric(f"LOQ ({unidad})", f"{res['loq']:.3g}")
-    st.markdown(f"**Ecuación:** `{G.ecuacion(res, 6)}`  ·  **Motor:** {res['engine']}")
+    m4.metric(f"LOD ({unit})", f"{res['lod']:.3g}")
+    m5.metric(f"LOQ ({unit})", f"{res['loq']:.3g}")
+    st.markdown(f"**Equation:** `{P.equation(res, 6)}`  ·  **Engine:** {res['engine']}")
     if eps is not None:
-        st.markdown(f"**Absortividad molar ε** = {eps:,.0f} L·mol⁻¹·cm⁻¹ (a {lam:.0f} nm, l = {paso} cm)")
+        st.markdown(f"**Molar absorptivity ε** = {eps:,.0f} L·mol⁻¹·cm⁻¹ "
+                    + (f"(at {wavelength:.0f} nm, " if wavelength else "(")
+                    + f"l = {path_length} cm)")
 
     a, b = st.columns([1, 1])
     with a:
-        st.subheader("Resumen")
-        st.dataframe(tabla_resumen(res, unidad, eps), hide_index=True, width="stretch")
+        st.subheader("Summary")
+        st.dataframe(summary_table(res, unit, eps), hide_index=True, width="stretch")
     with b:
-        st.subheader("Coeficientes")
-        st.dataframe(tabla_coeficientes(res).style.format(precision=6), hide_index=True,
+        st.subheader("Coefficients")
+        st.dataframe(coefficients_table(res).style.format(precision=6), hide_index=True,
                      width="stretch")
         st.subheader("ANOVA")
-        st.dataframe(tabla_anova(res).style.format(precision=6, na_rep=""), hide_index=True,
+        st.dataframe(anova_table(res).style.format(precision=6, na_rep=""), hide_index=True,
                      width="stretch")
 
-    st.subheader("Evaluación de supuestos")
-    icono = {"ok": "✅", "aviso": "⚠️", "mal": "❌", "info": "ℹ️"}
-    for e in evaluar(res):
-        st.markdown(f"{icono[e['estado']]} **{e['prueba']}** — {e['valor']}  \n{e['mensaje']}")
+    st.subheader("Assumption checks")
+    icon = {"ok": "✅", "warn": "⚠️", "bad": "❌", "info": "ℹ️"}
+    for e in evaluate(res):
+        st.markdown(f"{icon[e['status']]} **{e['test']}** — {e['value']}  \n{e['message']}")
 
-    with st.expander("Datos, residuales e influencia"):
-        st.dataframe(tabla_puntos(res).style.format(precision=5), hide_index=True,
+    with st.expander("Data, residuals and influence"):
+        st.dataframe(points_table(res).style.format(precision=5), hide_index=True,
                      width="stretch")
 
-fig_p = G.plotly_calibracion(res, xlab, titulo=f"{analito} · λ = {lam:.0f} nm")
-fig_d = G.plotly_diagnostico(res, xlab)
+fig_p = P.plotly_calibration(res, xlab, title=title)
+fig_d = P.plotly_diagnostics(res, xlab)
 
-with tab_graf:
+with tab_plots:
     if lib.startswith("Plotly"):
         st.plotly_chart(fig_p, width="stretch")
         st.plotly_chart(fig_d, width="stretch")
     elif lib.startswith("Matplotlib"):
-        usar_sns = "Seaborn" in lib
-        f1 = G.mpl_calibracion(res, xlab, titulo=f"{analito} · λ = {lam:.0f} nm",
-                               estilo_seaborn=estilo, usar_seaborn=usar_sns)
-        f2 = G.mpl_diagnostico(res, xlab, estilo_seaborn=estilo, usar_seaborn=usar_sns)
+        use_sns = "Seaborn" in lib
+        f1 = P.mpl_calibration(res, xlab, title=title,
+                               seaborn_style=style, use_seaborn=use_sns)
+        f2 = P.mpl_diagnostics(res, xlab, seaborn_style=style, use_seaborn=use_sns)
         st.pyplot(f1)
-        st.download_button("⬇️ Curva PNG (300 dpi)", G.fig_a_png(f1), "curva_calibracion.png",
+        st.download_button("⬇️ Curve PNG (300 dpi)", P.fig_to_png(f1), "calibration_curve.png",
                            "image/png")
         st.pyplot(f2)
-        st.download_button("⬇️ Diagnóstico PNG (300 dpi)", G.fig_a_png(f2), "diagnostico.png",
+        st.download_button("⬇️ Diagnostics PNG (300 dpi)", P.fig_to_png(f2), "diagnostics.png",
                            "image/png")
     else:
-        st.altair_chart(G.altair_calibracion(res, xlab), width="stretch")
-        st.altair_chart(G.altair_residuales(res, xlab), width="stretch")
+        st.altair_chart(P.altair_calibration(res, xlab), width="stretch")
+        st.altair_chart(P.altair_residuals(res, xlab), width="stretch")
 
-with tab_muest:
-    tm = tabla_muestras(res, unidad)
+with tab_samples:
+    tm = samples_table(res, unit)
     if tm.empty:
-        st.info("Agregue absorbancias de muestras en la pestaña Datos.")
+        st.info("Add sample absorbances in the Data tab.")
     else:
-        st.markdown(r"Concentración por regresión inversa: $\hat C_0 = (\bar A_0 - a)/b$, con "
+        st.markdown(r"Concentration by inverse regression: $\hat C_0 = (\bar A_0 - a)/b$, with "
                     r"$s_{C_0} = \frac{s_{y/x}}{b}\sqrt{\frac1m + \frac1n + "
                     r"\frac{(\bar A_0-\bar A)^2}{b^2 S_{xx}}}$")
-        st.dataframe(tm.style.format(precision=5, na_rep=""), hide_index=True,
-                     width="stretch")
-        for msg in advertencias_muestras(res):
+        st.dataframe(tm.style.format(precision=5, na_rep=""), hide_index=True, width="stretch")
+        for msg in sample_warnings(res):
             st.warning(msg)
-        st.caption("Si diluyó la muestra, multiplique la concentración y su intervalo por el "
-                   "factor de dilución.")
+        st.caption("If you diluted the sample, multiply the concentration and its interval by "
+                   "the dilution factor.")
 
-with tab_rep:
-    meta = {"Analito": analito, "Longitud de onda (nm)": lam, "Paso óptico (cm)": paso,
-            "unidad": unidad, "Nivel de confianza": f"{conf:.0%}",
-            "Modelo": "A = b·C (por el origen)" if origen else "A = a + b·C"}
-    html = reporte_html(res, meta, fig_p, fig_d, eps)
+with tab_report:
+    meta = {"Analyte": analyte, "Wavelength (nm)": wavelength, "Path length (cm)": path_length,
+            "unit": unit, "Confidence level": f"{conf:.0%}",
+            "Model": "A = b·C (through the origin)" if origin else "A = a + b·C"}
+    report = html_report(res, meta, fig_p, fig_d, eps)
     c1, c2, c3 = st.columns(3)
-    c1.download_button("⬇️ Reporte HTML", html, "reporte_calibracion.html", "text/html")
-    c2.download_button("⬇️ Resultados JSON", json.dumps(res, indent=2, ensure_ascii=False),
-                       "resultados.json", "application/json")
-    c3.download_button("⬇️ Residuales CSV", tabla_puntos(res).to_csv(index=False),
-                       "residuales.csv", "text/csv")
-    st.caption("El reporte HTML incluye tablas, interpretación y gráficos interactivos; "
-               "se puede imprimir a PDF desde el navegador.")
+    c1.download_button("⬇️ HTML report", report, "calibration_report.html", "text/html")
+    c2.download_button("⬇️ Results JSON", json.dumps(res, indent=2, ensure_ascii=False),
+                       "results.json", "application/json")
+    c3.download_button("⬇️ Residuals CSV", points_table(res).to_csv(index=False),
+                       "residuals.csv", "text/csv")
+    st.caption("The HTML report includes tables, interpretation and interactive plots; "
+               "it can be printed to PDF from the browser.")
 
-with tab_ia:
-    st.subheader("Software libre")
-    st.markdown("CalibraUV se distribuye bajo **licencia MIT**: puede usarla, estudiarla, "
-                "modificarla y redistribuirla libremente.")
-    st.subheader("Diseñada con apoyo de IA")
-    st.markdown(AVISO_IA)
-    pol = RAIZ / "POLITICA_USO_RESPONSABLE_IA.md"
+with tab_ai:
+    st.subheader("Free and open-source software")
+    st.markdown("CalibraUV is distributed under the **MIT license**: you may use, study, "
+                "modify and redistribute it freely.")
+    st.subheader("Built with AI assistance")
+    st.markdown(AI_NOTICE)
+    st.markdown("This is an independent project, not affiliated with or endorsed by "
+                "Anthropic. Claude is a trademark of Anthropic.")
+    pol = ROOT / "RESPONSIBLE_AI_POLICY.md"
     if pol.exists():
-        with st.expander("Política de uso responsable de la IA", expanded=False):
+        with st.expander("Responsible AI use policy", expanded=False):
             st.markdown(pol.read_text(encoding="utf-8"))

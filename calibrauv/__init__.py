@@ -1,9 +1,9 @@
-"""CalibraUV: curvas de calibración UV-Vis (ley de Lambert-Beer).
+"""CalibraUV: UV-Vis calibration curves (Beer-Lambert law).
 
-Proyecto de código abierto (MIT) diseñado en su mayoría con apoyo de Claude
-(Anthropic) y revisado por personas. Ver POLITICA_USO_RESPONSABLE_IA.md.
+Open-source project (MIT) designed mostly with the help of Claude (Anthropic)
+and reviewed by humans. See RESPONSIBLE_AI_POLICY.md.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
-from .motor import calcular, motores_disponibles  # noqa: F401
+from .engine import available_engines, compute  # noqa: F401
