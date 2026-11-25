@@ -18,6 +18,11 @@ def translatable_keys():
             if (isinstance(node, ast.Call) and getattr(node.func, "id", None) == "t" and node.args
                     and isinstance(node.args[0], ast.Constant) and isinstance(node.args[0].value, str)):
                 keys.add(node.args[0].value)
+        if f.name == "app.py":   # option labels kept in module-level *_LABELS dictionaries
+            for node in ast.parse(f.read_text(encoding="utf-8")).body:
+                if (isinstance(node, ast.Assign) and isinstance(node.value, ast.Dict)
+                        and getattr(node.targets[0], "id", "").endswith("_LABELS")):
+                    keys |= {v.value for v in node.value.values if isinstance(v, ast.Constant)}
     acc = methods.acceptance()
     keys |= set(analysis.LOD_BASES) | set(acc["rsd_criteria_pct"]) | set(acc["recovery_criteria_pct"])
     keys |= {acc["recovery_source"], AI_NOTICE}

@@ -9,6 +9,8 @@ import json
 from io import StringIO
 from pathlib import Path
 
+from dataclasses import replace
+
 import numpy as np
 import pandas as pd
 import streamlit as st
@@ -256,6 +258,147 @@ def show_method_tab(m: dict, variant: dict | None, standard: dict | None):
                  "practice are not taken from the cited references."))
 
 
+THEME_LABELS = {"journal": "Journal (clean)", "seaborn_ticks": "Seaborn · ticks", "seaborn_whitegrid": "Seaborn · whitegrid",
+                "seaborn_darkgrid": "Seaborn · darkgrid", "classic": "Classic (boxed)", "dark": "Dark (presentations)"}
+PALETTE_LABELS = {"okabe_ito": "Okabe-Ito (colour-blind safe)", "seaborn_colorblind": "Seaborn colorblind",
+                  "viridis": "Viridis (colour-blind safe)", "cividis": "Cividis (colour-blind safe)",
+                  "tableau": "Tableau 10", "deep": "Seaborn deep", "grayscale": "Grayscale (black & white print)"}
+MARKER_LABELS = {"o": "● circle", "s": "■ square", "^": "▲ triangle", "D": "◆ diamond", "v": "▼ triangle down"}
+GRID_LABELS = {"none": "None", "y": "Horizontal", "both": "Both"}
+LEGEND_LABELS = {"upper left": "Upper left", "lower right": "Lower right", "outside": "Outside (right)", "none": "Hidden"}
+SIZE_PRESETS = {"single": "Single column (85 mm)", "onehalf": "1.5 column (114 mm)", "double": "Double column (174 mm)",
+                "custom": "Custom"}
+FORMAT_LABELS = {"pdf": "PDF — vector (recommended)", "svg": "SVG — vector, editable text", "eps": "EPS — vector",
+                 "tiff": "TIFF — LZW lossless", "png": "PNG — lossless"}
+
+
+def design_panel(lib: str) -> P.Design:
+    """One set of design options for Matplotlib, Seaborn, Plotly and Altair."""
+    themes = [x for x in P.THEMES if lib == "Matplotlib + Seaborn" or not x.startswith("seaborn_")] \
+        if lib.startswith("Matplotlib") else P.THEMES
+    if st.session_state.get("w_d_theme") not in themes:
+        st.session_state["w_d_theme"] = "journal"
+    with st.expander(t("🎨 Design"), expanded=False):
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            st.markdown(f"**{t('Style')}**")
+            theme = st.selectbox(t("Theme"), themes, key="w_d_theme", format_func=lambda k: t(THEME_LABELS[k]))
+            palette = st.selectbox(t("Palette"), list(P.PALETTES), key=init("w_d_pal", "okabe_ito"),
+                                   format_func=lambda k: t(PALETTE_LABELS[k]))
+            custom = st.checkbox(t("Custom colours"), key=init("w_d_custom", False))
+            cc = sc = None
+            if custom:
+                main, unk, _, _ = P.PALETTES[palette]
+                cc = st.color_picker(t("Curve and standards"), key=init("w_d_cc", main))
+                sc = st.color_picker(t("Samples"), key=init("w_d_sc", unk))
+            font = st.radio(t("Font"), ["sans", "serif"], horizontal=True, key=init("w_d_font", "sans"),
+                            format_func=lambda k: "Arial / Helvetica" if k == "sans" else "Times")
+            fsize = st.slider(t("Font size (pt, at final size)"), 6.0, 12.0, step=0.5, key=init("w_d_fs", 8.0))
+        with c2:
+            st.markdown(f"**{t('Elements')}**")
+            show = {k: st.checkbox(lbl, key=init(f"w_d_{k}", default)) for k, lbl, default in [
+                ("show_bands", t("Confidence and prediction bands"), True),
+                ("show_lod", t("LOD and LOQ lines"), True),
+                ("show_samples", t("Samples"), True), ("show_labels", t("Sample names"), True),
+                ("show_equation", t("Equation and R² in the plot"), True), ("show_title", t("Title"), False),
+                ("replicate_means", t("Standards as mean ± SD of replicates"), False),
+                ("residual_lines", t("Residual lines (point to line)"), False),
+                ("x_from_zero", t("Axes start at zero"), True),
+                ("panel_letters", t("Panel letters (a)–(d)"), True)]}
+        with c3:
+            st.markdown(f"**{t('Axes and marks')}**")
+            marker = st.selectbox(t("Marker"), list(P.MARKERS), key=init("w_d_marker", "o"),
+                                  format_func=lambda k: t(MARKER_LABELS[k]))
+            mscale = st.slider(t("Marker size"), 0.5, 2.5, step=0.1, key=init("w_d_ms", 1.0))
+            lscale = st.slider(t("Line width"), 0.5, 2.5, step=0.1, key=init("w_d_lw", 1.0))
+            grid = st.selectbox(t("Grid"), list(GRID_LABELS), key=init("w_d_grid", "y"), format_func=lambda k: t(GRID_LABELS[k]))
+            minor = st.checkbox(t("Minor ticks"), key=init("w_d_minor", True))
+            legend = st.selectbox(t("Legend"), P.LEGEND_POS, key=init("w_d_legend", "upper left"),
+                                  format_func=lambda k: t(LEGEND_LABELS[k]))
+            xlabel = st.text_input(t("X-axis label"), key=init("w_d_xl", ""), placeholder=t("automatic"))
+            ylabel = st.text_input(t("Y-axis label"), key=init("w_d_yl", ""), placeholder=t("automatic"))
+    return P.Design(theme=theme, palette=palette, curve_color=cc, sample_color=sc, marker=marker,
+                    marker_scale=mscale, line_scale=lscale, grid=grid, minor_ticks=minor, legend=legend,
+                    xlabel=xlabel.strip(), ylabel=ylabel.strip(), font=font, font_size=fsize, **show)
+
+
+def size_inputs(prefix: str, default_preset: str, ratio: float) -> tuple[float, float]:
+    preset = st.selectbox(t("Width"), list(SIZE_PRESETS), key=init(f"w_{prefix}_preset", default_preset),
+                          format_func=lambda k: t(SIZE_PRESETS[k]))
+    if preset == "custom":
+        w = st.number_input(t("Width (mm)"), 30.0, 300.0, step=1.0, key=init(f"w_{prefix}_w", 85.0))
+    else:
+        w = P.JOURNAL_WIDTHS_MM[preset]
+    h = st.number_input(t("Height (mm)"), 30.0, 300.0, step=1.0, key=init_follow(f"w_{prefix}_h_{preset}", round(w * ratio)))
+    return float(w), float(h)
+
+
+def publication_figures(res, xlab, title, design: P.Design):
+    """Preview at final size and publication export (Matplotlib/Seaborn)."""
+    with st.expander(t("📐 Size and export for publication"), expanded=True):
+        st.caption(t("Journals usually ask for vector files (PDF/EPS/SVG) for graphs, or TIFF at 600 dpi "
+                     "(combination) / 1200 dpi (line art), at final size: 85 mm (single column), 114 mm or "
+                     "174 mm (double column), with fonts of 6–8 pt. Check your journal's author guidelines."))
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            st.markdown(f"**{t('Calibration curve')}**")
+            cw, ch = size_inputs("pc", "single", 0.76)
+        with c2:
+            st.markdown(f"**{t('Residual diagnostics')}**")
+            dw, dh = size_inputs("pd", "double", 0.70)
+        with c3:
+            st.markdown(f"**{t('File')}**")
+            fmt = st.selectbox(t("Format"), list(FORMAT_LABELS), key=init("w_pub_fmt", "pdf"),
+                               format_func=lambda k: t(FORMAT_LABELS[k]))
+            vector = fmt in P.VECTOR_FORMATS
+            dpi = st.select_slider(t("Resolution (dpi)"), [300, 600, 1200], key=init("w_pub_dpi", 600),
+                                   disabled=vector)
+            cmode = "RGB"
+            if fmt == "tiff":
+                cmode = st.radio(t("Colour mode"), ["RGB", "CMYK"], horizontal=True, key=init("w_pub_cmyk", "RGB"),
+                                 help=t("RGB is accepted by most journals. Use CMYK only if the journal asks for it "
+                                        "(simple conversion without an ICC profile)."))
+            if vector:
+                st.caption(t("Vector: infinite resolution, fonts embedded (TrueType); dpi does not apply."))
+            else:
+                st.caption(t("Final size: {a} × {b} px (curve) · {c} × {d} px (diagnostics)",
+                             a=round(cw / 25.4 * dpi), b=round(ch / 25.4 * dpi),
+                             c=round(dw / 25.4 * dpi), d=round(dh / 25.4 * dpi)))
+    d_curve = replace(design, width_mm=cw, height_mm=ch)
+    d_diag = replace(design, width_mm=dw, height_mm=dh)
+    f1 = P.mpl_calibration(res, xlab, title=title, design=d_curve)
+    f2 = P.mpl_diagnostics(res, xlab, design=d_diag)
+    st.caption(t("Preview at final size ({w} × {h} mm). What you see is what is exported.", w=f"{cw:g}", h=f"{ch:g}"))
+    st.image(P.export_figure(f1, "png", 220, close=False), width=int(cw * 5.2))
+    st.caption(t("Preview at final size ({w} × {h} mm).", w=f"{dw:g}", h=f"{dh:g}"))
+    st.image(P.export_figure(f2, "png", 160, close=False), width=int(min(dw * 5.2, 1100)))
+    sig = (repr(d_curve), repr(d_diag), fmt, dpi, cmode, get_lang(), res["engine"], res["r_squared"], res["n"])
+    files = st.session_state.get("_pub_files")
+    if st.button(t("⚙️ Prepare publication files"), type="primary"):
+        with st.spinner(t("Rendering…")):
+            files = st.session_state["_pub_files"] = {
+                "sig": sig, "fmt": fmt, "dpi": dpi,
+                "curve": P.export_figure(f1, fmt, dpi, close=False, color_mode=cmode),
+                "diag": P.export_figure(f2, fmt, dpi, close=False, color_mode=cmode)}
+    plt_close(f1, f2)
+    if files and files["sig"] == sig:
+        ext = files["fmt"]
+        suffix = "" if ext in P.VECTOR_FORMATS else f"_{files['dpi']}dpi"
+        b1, b2 = st.columns(2)
+        b1.download_button(t("⬇️ Calibration curve ({f})", f=ext.upper()), files["curve"],
+                           f"calibration_curve{suffix}.{ext}", P.EXPORT_FORMATS[ext])
+        b2.download_button(t("⬇️ Residual diagnostics ({f})", f=ext.upper()), files["diag"],
+                           f"residual_diagnostics{suffix}.{ext}", P.EXPORT_FORMATS[ext])
+    elif files:
+        st.info(t("Settings or data changed: prepare the files again."))
+
+
+def plt_close(*figs):
+    import matplotlib.pyplot as _plt
+    for f in figs:
+        _plt.close(f)
+
+
 def show_concepts():
     st.markdown(t("What each quantity means and how to interpret it. Use it together with the "
                   "**Step-by-step calculation** tab."))
@@ -465,8 +608,7 @@ with st.sidebar:
         libs = ["Plotly", "Matplotlib + Seaborn", "Matplotlib", "Altair"]
         lib = st.radio(t("Library"), libs, key=init("w_lib", libs[0]),
                        format_func=lambda k: t("Plotly (interactive)") if k == "Plotly" else k)
-        style = st.selectbox(t("Seaborn style"), ["whitegrid", "darkgrid", "ticks", "white"], key=init("w_style", "whitegrid"),
-                             disabled=lib != "Matplotlib + Seaborn")
+        st.caption(t("Colours, markers, sizes and export options: Plots tab → 🎨 Design."))
     else:
         const = method["constants"]
         st.caption(t("No calibration curve: uses the known ε of {p}.", p=field(const, "pigment")))
@@ -663,24 +805,24 @@ with t_stats:
     with st.expander(t("Data, residuals and influence")):
         st.dataframe(points_table(res).style.format(precision=5), hide_index=True, width="stretch")
 
-fig_p = P.plotly_calibration(res, xlab, title=title)
-fig_d = P.plotly_diagnostics(res, xlab)
-
 with t_plots:
+    pdesign = design_panel(lib)
     if lib == "Plotly":
-        st.plotly_chart(fig_p, width="stretch")
-        st.plotly_chart(fig_d, width="stretch")
+        fig_p = P.plotly_calibration(res, xlab, title=title, design=pdesign)
+        fig_d = P.plotly_diagnostics(res, xlab, design=pdesign)
+        st.plotly_chart(fig_p, width="stretch", config=P.plotly_config(pdesign, "calibration_curve"))
+        st.plotly_chart(fig_d, width="stretch", config=P.plotly_config(pdesign, "residual_diagnostics"))
+        st.caption(t("📷 The camera icon of each plot downloads a vector SVG. For journal figures with exact "
+                     "size and embedded fonts use Matplotlib (library selector in the sidebar)."))
     elif lib.startswith("Matplotlib"):
-        use_sns = "Seaborn" in lib
-        f1 = P.mpl_calibration(res, xlab, title=title, seaborn_style=style, use_seaborn=use_sns)
-        f2 = P.mpl_diagnostics(res, xlab, seaborn_style=style, use_seaborn=use_sns)
-        st.pyplot(f1)
-        st.download_button(t("⬇️ Curve PNG (300 dpi)"), P.fig_to_png(f1), "calibration_curve.png", "image/png")
-        st.pyplot(f2)
-        st.download_button(t("⬇️ Diagnostics PNG (300 dpi)"), P.fig_to_png(f2), "diagnostics.png", "image/png")
+        publication_figures(res, xlab, title, pdesign)
     else:
-        st.altair_chart(P.altair_calibration(res, xlab), width="stretch")
-        st.altair_chart(P.altair_residuals(res, xlab), width="stretch")
+        st.altair_chart(P.altair_calibration(res, xlab, design=pdesign), width="stretch")
+        st.altair_chart(P.altair_residuals(res, xlab, design=pdesign), width="stretch")
+        st.caption(t("The ⋯ menu of each chart saves it as SVG or PNG. For journal figures use Matplotlib."))
+if lib != "Plotly":
+    fig_p = P.plotly_calibration(res, xlab, title=title, design=pdesign)
+    fig_d = P.plotly_diagnostics(res, xlab, design=pdesign)
 
 # ----------------------------------------------------------- samples/content
 content_df, content_label, tannin_summary, scale = pd.DataFrame(), "", pd.DataFrame(), "mg"
@@ -833,7 +975,8 @@ with t_add:
             else:
                 st.warning(t("Slope difference ≥ {l}%: possible matrix effect — quantify by standard "
                              "addition rather than with the external curve.", l=lim))
-            st.plotly_chart(P.plotly_standard_addition(res_add, sa, t("Added concentration ({u})", u=unit)),
+            st.plotly_chart(P.plotly_standard_addition(res_add, sa, t("Added concentration ({u})", u=unit), pdesign),
+                            config=P.plotly_config(pdesign, "standard_addition"),
                             width="stretch")
             st.caption(t(r"Uncertainty: $s_{C} = \frac{s_{y/x}}{b}\sqrt{\frac1n + \frac{\bar y^2}{b^2 S_{xx}}}$ "
                          r"(Miller & Miller). Regression by {e}.").replace("{e}", res_add["engine"]))

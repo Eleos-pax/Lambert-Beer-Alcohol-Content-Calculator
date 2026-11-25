@@ -30,6 +30,8 @@ methods, proteins, etc.), with full statistics computed in **R** and plots made 
 | **Assumptions** | Shapiro-Wilk, Breusch-Pagan, Durbin-Watson, lack of fit (with replicates), standardized residuals, leverage, Cook's distance |
 | **Analytical** | LOD and LOQ (ICH Q2), absorptivity a = b/l and **molar absorptivity ε** (also from mg/L using the molar mass) |
 | **Samples** | Concentration by inverse regression with its uncertainty s(C₀) and confidence interval; warnings for extrapolation, < LOD and < LOQ |
+| **Figures for publication** | Exact journal sizes (85 / 114 / 174 mm or custom), vector **PDF, SVG, EPS** or **TIFF (LZW) / PNG up to 1200 dpi**, RGB or CMYK, Arial/Times embedded as TrueType (no Type 3), editable SVG text, no transparency, panel letters (a)–(d); the preview is exactly what is exported |
+| **Figure design** | One design panel for Matplotlib, Seaborn, Plotly and Altair: themes (journal, Seaborn, classic, dark), colour-blind palettes (Okabe-Ito, viridis, cividis…) or grayscale, custom colours, markers, sizes, line widths, grid, minor ticks, legend position, axis labels, equation box, mean ± SD of replicates, residual lines |
 | **Plots** | Curve with confidence and prediction bands, LOD/LOQ and samples; diagnostics panel (residuals, Q-Q, Cook) |
 | **Libraries** | Plotly (interactive), Matplotlib + Seaborn, plain Matplotlib, Altair — 300 dpi PNG for publications |
 | **Export** | HTML report with interpretation, JSON results and residuals CSV |
@@ -165,6 +167,27 @@ The R script can be used on its own, for example from RStudio or the terminal:
 ```bash
 Rscript r/calibration.R --data=data/example_iron_calibration.csv --unknowns=data/example_samples.csv --conf=0.95 --out=results.json
 ```
+
+## Figures for publication
+
+Choose **Matplotlib** or **Matplotlib + Seaborn** in the sidebar, then in the *Plots* tab:
+
+1. **🎨 Design** — theme, palette, font (Arial/Helvetica or Times) and size in points
+   *at final size*, markers, lines, grid, legend, axis labels and the elements to show.
+2. **📐 Size and export for publication** — width (single, 1.5 or double column, or
+   custom) and height in mm, format and resolution, then **Prepare publication files**.
+
+| Format | Type | Use |
+|---|---|---|
+| PDF | vector | recommended for graphs; fonts embedded as TrueType |
+| SVG | vector | editable text (Inkscape, Illustrator) |
+| EPS | vector | journals that still require EPS |
+| TIFF | raster, LZW lossless | 600 dpi (combination) or 1200 dpi (line art); RGB or CMYK |
+| PNG | raster, lossless | presentations, web |
+
+The exported file has exactly the chosen size (e.g. 85.0 × 65.0 mm), fonts are 6–12 pt at
+that size, and raster files carry their dpi and have no alpha channel. Always check your
+journal's author guidelines. With Plotly, the camera icon downloads a vector SVG.
 
 ## Tests
 
